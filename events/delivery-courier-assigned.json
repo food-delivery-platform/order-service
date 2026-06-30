@@ -1,0 +1,5 @@
+{
+  "Records": [
+    { "body": "{\"type\": \"delivery.courier_assigned\", \"orderId\": \"order-xyz\", \"courierId\": \"courier-001\"}" }
+  ]
+}

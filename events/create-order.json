@@ -1,0 +1,5 @@
+{
+  "httpMethod": "POST",
+  "path": "/api/v1/orders",
+  "body": "{\"customerId\": \"user-123\", \"restaurantId\": \"rest-456\", \"items\": [{\"menuItemId\": \"item-1\", \"quantity\": 2}], \"deliveryAddressId\": \"addr-789\"}"
+}

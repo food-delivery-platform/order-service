@@ -1,0 +1,5 @@
+{
+  "Records": [
+    { "body": "{\"type\": \"payment.failed\", \"orderId\": \"order-xyz\", \"reason\": \"CARD_DECLINED\"}" }
+  ]
+}

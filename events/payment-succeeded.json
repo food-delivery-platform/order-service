@@ -1,0 +1,5 @@
+{
+  "Records": [
+    { "body": "{\"type\": \"payment.succeeded\", \"orderId\": \"order-xyz\"}" }
+  ]
+}

@@ -1,0 +1,5 @@
+{
+  "Records": [
+    { "body": "{\"type\": \"delivery.status_changed\", \"orderId\": \"order-xyz\", \"stage\": \"PICKED_UP\"}" }
+  ]
+}
