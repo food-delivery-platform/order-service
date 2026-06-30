@@ -24,8 +24,5 @@ jobs:
       - name: Lint
         run: ruff check src scripts
 
-      - name: Format check
-        run: ruff format --check src scripts
-
       - name: Format diff
         run: ruff format --diff src scripts
