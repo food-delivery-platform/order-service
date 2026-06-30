@@ -26,3 +26,6 @@ jobs:
 
       - name: Format check
         run: ruff format --check src scripts
+
+      - name: Format diff
+        run: ruff format --diff src scripts
