@@ -18,7 +18,7 @@ class PaymentSessionStatus(str, Enum):
 class CreatePaymentSessionRequest:
     order_id: str
     amount: float
-    currency: str = "EUR"
+    currency: str = "ILS"
 
 
 @dataclass
