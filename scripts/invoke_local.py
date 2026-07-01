@@ -4,7 +4,7 @@ Usage:
     python scripts/invoke_local.py <handler_name> [event_file.json]
 
 Example:
-    python scripts/invoke_local.py health
+    python scripts/invoke_local.py get_order_status
     python scripts/invoke_local.py create_order events/create-order.json
 """
 import importlib
