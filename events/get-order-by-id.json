@@ -1,0 +1,5 @@
+{
+  "pathParameters": {
+    "orderId": "order-abc123"
+  }
+}
