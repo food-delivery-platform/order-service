@@ -3,6 +3,7 @@
 DTOs are the shapes that cross the API boundary; they are intentionally
 separate from the internal domain models.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field

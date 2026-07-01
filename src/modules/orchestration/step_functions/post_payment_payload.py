@@ -1,4 +1,5 @@
 """Input payload for the post-payment Step Functions state machine (FDS-16)."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

@@ -1,4 +1,5 @@
 """DTOs for creating a payment session via Payment Service (FDS-16)."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
