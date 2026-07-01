@@ -3,6 +3,7 @@
 Delegates the actual validation to Menu Service and stops the flow when
 the cart is invalid.
 """
+
 from __future__ import annotations
 
 from src.modules.menu.client import menu_service_client

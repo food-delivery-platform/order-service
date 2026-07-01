@@ -1,4 +1,5 @@
 """Lambda handler - GET /api/v1/orders/{orderId} (FDS-21)."""
+
 from src.modules.orders.api import mappers
 from src.modules.orders.service import order_read_service
 from src.shared.errors.app_error import AppError

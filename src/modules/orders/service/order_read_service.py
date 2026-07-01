@@ -1,4 +1,5 @@
 """Read-side service methods for orders (FDS-21)."""
+
 from __future__ import annotations
 
 from src.modules.orders.model.order import Order

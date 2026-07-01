@@ -3,6 +3,7 @@
 Order Service does not duplicate Menu Service validation logic; it only
 sends the cart and consumes the validation response.
 """
+
 from __future__ import annotations
 
 import json

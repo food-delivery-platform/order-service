@@ -1,4 +1,5 @@
 """Lambda handler - GET /api/v1/orders (list the customer's orders) (FDS-21)."""
+
 from src.modules.orders.api import mappers
 from src.modules.orders.service import order_read_service
 from src.shared.errors.app_error import AppError
@@ -11,9 +12,7 @@ def handler(event, context=None):
         orders = order_read_service.get_customer_orders(customer_id)
     except AppError as err:
         return api_response.from_app_error(err)
-    return api_response.ok(
-        {"orders": [mappers.to_order_response(o) for o in orders]}
-    )
+    return api_response.ok({"orders": [mappers.to_order_response(o) for o in orders]})
 
 
 def _extract_customer_id(event) -> str:

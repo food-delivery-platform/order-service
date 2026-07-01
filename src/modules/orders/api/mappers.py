@@ -1,4 +1,5 @@
 """Map internal Order models to API response shapes (FDS-21)."""
+
 from __future__ import annotations
 
 from src.modules.orders.model.order import Order

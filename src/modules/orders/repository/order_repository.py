@@ -2,6 +2,7 @@
 
 Only read methods are implemented in this task; writes arrive later.
 """
+
 from __future__ import annotations
 
 from src.modules.orders.model.delivery_address import DeliveryAddress
