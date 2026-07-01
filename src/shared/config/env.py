@@ -2,13 +2,16 @@
 
 Names match the "Required Environment Variables" list in FDS-15.
 """
+
 import os
+
 
 def get(name: str, default: str | None = None, required: bool = False) -> str | None:
     value = os.environ.get(name, default)
     if required and not value:
         raise RuntimeError(f"Missing required environment variable: {name}")
     return value
+
 
 AWS_REGION = get("AWS_REGION", "eu-west-1")
 

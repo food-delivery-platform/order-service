@@ -1,4 +1,5 @@
 """Inbound payment.* events consumed from SQS (FDS-16)."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

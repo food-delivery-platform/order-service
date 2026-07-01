@@ -1,4 +1,5 @@
 """Single line item inside an order (FDS-16)."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

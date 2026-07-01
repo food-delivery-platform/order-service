@@ -1,4 +1,5 @@
 """Outbound order.* events published by Order Service to SNS (FDS-16)."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field

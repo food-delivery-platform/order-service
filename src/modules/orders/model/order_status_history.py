@@ -1,4 +1,5 @@
 """One entry in an order status change history (FDS-16)."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

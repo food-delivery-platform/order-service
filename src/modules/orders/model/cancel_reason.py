@@ -1,4 +1,5 @@
 """Reasons an order can be cancelled or fail (FDS-16)."""
+
 from __future__ import annotations
 
 from enum import Enum

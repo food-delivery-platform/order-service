@@ -1,4 +1,5 @@
 """DTOs for validating a cart against Menu Service (FDS-16)."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field

@@ -7,12 +7,14 @@ Example:
     python scripts/invoke_local.py health
     python scripts/invoke_local.py create_order events/create-order.json
 """
+
 import importlib
 import json
 import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 
 def main():
     if len(sys.argv) < 2:
@@ -25,6 +27,7 @@ def main():
             event = json.load(fh)
     module = importlib.import_module(f"src.lambdas.{handler_name}.handler")
     print(json.dumps(module.handler(event, None), indent=2, ensure_ascii=False))
+
 
 if __name__ == "__main__":
     main()

@@ -3,6 +3,7 @@
 Only these statuses are allowed across Order Service. Restaurant-side
 `preparing`/`ready` stages live on the restaurant frontend, not here.
 """
+
 from __future__ import annotations
 
 from enum import Enum
