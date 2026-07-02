@@ -14,6 +14,8 @@ def to_order_response(order: Order) -> dict:
     @property values (total, line_total), which asdict does not include.
     """
     data = asdict(order)
+    data.pop("status_history", None)
+    data.pop("cancel_reason", None)
     data["status"] = order.status.value
     data["total"] = order.total
     for item, item_data in zip(order.items, data["items"]):

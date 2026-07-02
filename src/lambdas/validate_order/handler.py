@@ -10,7 +10,7 @@ from src.shared.errors.app_error import AppError
 
 
 def handler(event, context=None):
-    restaurant_id = event.get("restaurant_id")
+    restaurant_id = event["restaurant_id"]
     items = event.get("items", [])
 
     try:
