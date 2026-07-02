@@ -20,7 +20,7 @@ pip install -r requirements.txt
 ## Run a handler locally
 
 ```
-python scripts/invoke_local.py health
+python scripts/invoke_local.py get_order_by_id events/get-order-by-id.json
 python scripts/invoke_local.py create_order events/create-order.json
 ```
 
