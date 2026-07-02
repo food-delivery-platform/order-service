@@ -21,6 +21,9 @@ from src.shared.errors.app_error import AppError
 
 _VALIDATE_CART_PATH = "/api/v1/cart/validate"
 
+# HTTP codes Menu Service uses to report a bad/invalid cart (with details).
+_VALIDATION_HTTP_CODES = (400, 422)
+
 
 def validate_cart(request: MenuValidationRequest) -> MenuValidationResult:
     """Call Menu Service to validate a cart and return its response."""
@@ -41,6 +44,10 @@ def validate_cart(request: MenuValidationRequest) -> MenuValidationResult:
         with urllib.request.urlopen(req, timeout=10) as resp:
             payload = json.loads(resp.read().decode("utf-8"))
     except urllib.error.HTTPError as exc:
+        # A 400/422 means Menu Service rejected the cart with validation
+        # details: surface it as CART_VALIDATION_FAILED, not a generic error.
+        if exc.code in _VALIDATION_HTTP_CODES:
+            raise _cart_validation_error(exc) from exc
         raise AppError(
             502, "MENU_SERVICE_ERROR", f"Menu Service returned HTTP {exc.code}"
         ) from exc
@@ -50,6 +57,21 @@ def validate_cart(request: MenuValidationRequest) -> MenuValidationResult:
         ) from exc
 
     return _to_result(payload)
+
+
+def _cart_validation_error(exc: urllib.error.HTTPError) -> AppError:
+    """Parse a 400/422 error body from Menu Service into CART_VALIDATION_FAILED."""
+    try:
+        payload = json.loads(exc.read().decode("utf-8"))
+    except (ValueError, OSError):
+        payload = {}
+    errors = payload.get("errors") or []
+    message = (
+        "; ".join(errors)
+        if errors
+        else payload.get("message") or "Menu Service rejected the cart"
+    )
+    return AppError(422, "CART_VALIDATION_FAILED", message)
 
 
 def _to_result(payload: dict) -> MenuValidationResult:
