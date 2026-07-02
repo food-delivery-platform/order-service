@@ -101,6 +101,33 @@ Supabase (Postgres), события — SNS/SQS, оркестрация — Step
 
 ---
 
+## 2026-07-02 — DeepSeek (deepseek-v4-pro) — передача дел от Codebuff + 8 коммитов в FDS-21
+
+- **Цель:** принять бриф от Codebuff/minimax-m3, создать общую память проекта
+  (AGENTS.md), предложить pre-commit hook для авто-журнала, и выполнить
+  7 запланированных коммитов по замечаниям к ветке FDS-21.
+- **Изменено:**
+  - Создан `AGENTS.md` (4 раздела: описание, архитектура/статус, конвенции, журнал).
+  - `.gitignore` — добавлен `.ruff_cache/`.
+  - `order_repository.py` — `_row_to_order` + `_row_to_address` бросают `AppError`
+    на пустых items и отсутствующих полях адреса.
+  - `validate_order/handler.py` — `try/except AppError` → `valid: False` вместо
+    падения; возвращён `event["restaurant_id"]` (fail-fast).
+  - `mappers.py` — переход на `dataclasses.asdict`, в ответ добавлен
+    `delivery_address`; `status_history` и `cancel_reason` исключены из выдачи.
+  - `menu_service_client.py` — 400/422 от Menu Service → `CART_VALIDATION_FAILED`
+    (422), остальные HTTP-ошибки → `MENU_SERVICE_ERROR` (502).
+  - `readme.md` — пример с `/health` заменён на `get_order_by_id`.
+  - `ruff format` прогнан, smoke-import OK.
+- **Открыто:** pre-commit hook не установлен (показан текст). В коде брифа
+  обнаружены две проблемы: утечка `status_history`/`cancel_reason` через `asdict`
+  и смягчение `event["restaurant_id"]` → `.get()`. Обе исправлены отдельным
+  коммитом после код-ревью.
+- **Дальше:** установить pre-commit hook. Реализовать `orders/state_machine/`,
+  `payments/client/`, `events/`, бизнес-логику оставшихся лямбд. Добавить тесты.
+
+---
+
 ## Лента
 
 - 2026-07-02 [DeepSeek/deepseek-v4-pro] создал AGENTS.md, обновил .gitignore (.ruff_cache), пофиксил order_repository, validate_order handler, mappers, menu_service_client, readme (FDS-21)
