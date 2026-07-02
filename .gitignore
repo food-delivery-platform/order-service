@@ -3,3 +3,7 @@ __pycache__/
 .env
 .venv/
 .vscode/
+# Local AI-agent handoffs and briefs (Codebuff/DeepSeek/etc.): never committed
+.ruff_cache/
+.local/handoff-*.md
+.local/brief-*.md
