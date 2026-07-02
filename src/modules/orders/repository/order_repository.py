@@ -47,9 +47,7 @@ def _row_to_order(row: dict) -> Order:
 
     item_rows = row.get("items") or []
     if not item_rows:
-        raise AppError(
-            500, "INVALID_ORDER_DATA", f"Order {order_id} has no items"
-        )
+        raise AppError(500, "INVALID_ORDER_DATA", f"Order {order_id} has no items")
     items = [
         OrderItem(
             menu_item_id=i["menu_item_id"],
