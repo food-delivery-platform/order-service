@@ -10,8 +10,10 @@ from src.modules.orders.model.order import Order
 from src.modules.orders.model.order_item import OrderItem
 from src.modules.orders.model.order_status import OrderStatus
 from src.shared.db import supabase_client
+from src.shared.errors.app_error import AppError
 
 _ORDERS_TABLE = "orders"
+_REQUIRED_ADDRESS_FIELDS = ("address_id", "street", "city", "postal_code")
 
 
 def get_orders_by_customer(customer_id: str) -> list[Order]:
@@ -41,6 +43,13 @@ def get_order_by_id(order_id: str) -> Order | None:
 
 def _row_to_order(row: dict) -> Order:
     # TODO(FDS-21): align field names with the final DB schema (Yaroslav).
+    order_id = row["order_id"]
+
+    item_rows = row.get("items") or []
+    if not item_rows:
+        raise AppError(
+            500, "INVALID_ORDER_DATA", f"Order {order_id} has no items"
+        )
     items = [
         OrderItem(
             menu_item_id=i["menu_item_id"],
@@ -48,17 +57,13 @@ def _row_to_order(row: dict) -> Order:
             quantity=int(i["quantity"]),
             unit_price=float(i["unit_price"]),
         )
-        for i in (row.get("items") or [])
+        for i in item_rows
     ]
-    address_row = row.get("delivery_address") or {}
-    delivery_address = DeliveryAddress(
-        address_id=address_row.get("address_id", ""),
-        street=address_row.get("street", ""),
-        city=address_row.get("city", ""),
-        postal_code=address_row.get("postal_code", ""),
-    )
+
+    delivery_address = _row_to_address(order_id, row.get("delivery_address") or {})
+
     return Order(
-        order_id=row["order_id"],
+        order_id=order_id,
         customer_id=row["customer_id"],
         restaurant_id=row["restaurant_id"],
         items=items,
@@ -66,4 +71,23 @@ def _row_to_order(row: dict) -> Order:
         status=OrderStatus(row.get("status", OrderStatus.CREATED.value)),
         created_at=row.get("created_at"),
         updated_at=row.get("updated_at"),
+    )
+
+
+def _row_to_address(order_id: str, address_row: dict) -> DeliveryAddress:
+    missing = [f for f in _REQUIRED_ADDRESS_FIELDS if not address_row.get(f)]
+    if missing:
+        raise AppError(
+            500,
+            "INVALID_ORDER_DATA",
+            f"Order {order_id} address is missing fields: {', '.join(missing)}",
+        )
+    return DeliveryAddress(
+        address_id=address_row["address_id"],
+        street=address_row["street"],
+        city=address_row["city"],
+        postal_code=address_row["postal_code"],
+        latitude=address_row.get("latitude"),
+        longitude=address_row.get("longitude"),
+        notes=address_row.get("notes"),
     )
