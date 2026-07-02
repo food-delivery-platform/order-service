@@ -2,26 +2,20 @@
 
 from __future__ import annotations
 
+from dataclasses import asdict
+
 from src.modules.orders.model.order import Order
 
 
 def to_order_response(order: Order) -> dict:
-    return {
-        "order_id": order.order_id,
-        "customer_id": order.customer_id,
-        "restaurant_id": order.restaurant_id,
-        "status": order.status.value,
-        "items": [
-            {
-                "menu_item_id": item.menu_item_id,
-                "name": item.name,
-                "quantity": item.quantity,
-                "unit_price": item.unit_price,
-                "line_total": item.line_total,
-            }
-            for item in order.items
-        ],
-        "total": order.total,
-        "created_at": order.created_at,
-        "updated_at": order.updated_at,
-    }
+    """Serialize an Order (incl. delivery_address) to a response dict.
+
+    Uses dataclasses.asdict for the field mapping and then adds the computed
+    @property values (total, line_total), which asdict does not include.
+    """
+    data = asdict(order)
+    data["status"] = order.status.value
+    data["total"] = order.total
+    for item, item_data in zip(order.items, data["items"]):
+        item_data["line_total"] = item.line_total
+    return data
