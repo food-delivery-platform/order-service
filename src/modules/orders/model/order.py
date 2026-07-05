@@ -1,4 +1,8 @@
-"""Order aggregate root (FDS-16)."""
+"""Order aggregate root (FDS-16, FDS-24).
+
+All monetary calculations (line_total, subtotal) are performed in the
+service layer. The model carries data only.
+"""
 
 from __future__ import annotations
 
@@ -19,11 +23,9 @@ class Order:
     items: list[OrderItem]
     delivery_address: DeliveryAddress
     status: OrderStatus = OrderStatus.CREATED
+    subtotal: float = 0.0
+    currency: str = "ILS"
     status_history: list[OrderStatusHistoryEntry] = field(default_factory=list)
     cancel_reason: CancelReason | None = None
     created_at: str | None = None
     updated_at: str | None = None
-
-    @property
-    def total(self) -> float:
-        return round(sum(item.line_total for item in self.items), 2)
