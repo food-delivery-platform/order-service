@@ -1,7 +1,7 @@
 # AGENTS.md — общая память проекта для AI-агентов
 
 > **Проект:** `order-service` — Food Delivery Platform, сервис заказов.
-> **Ветка по умолчанию:** `FDS-21-order-validation-and-read-apis` (актуальная на 2026-07-02).
+> **Ветка по умолчанию:** `FDS-24-order-creation-and-persistence` (актуальная на 2026-07-05).
 > **Язык:** Python 3.12+, AWS Lambda (без фреймворков), Supabase (Postgres).
 
 Order Service управляет жизненным циклом заказа: создание, валидация корзины,
@@ -18,6 +18,7 @@ Supabase (Postgres), события — SNS/SQS, оркестрация — Step
 | Хендлер | Статус | Описание |
 |---|---|---|
 | `create_order` | стаб (501) | Создание заказа, старт Step Functions |
+| `create_order_step` | ✅ реализован (FDS-24) | Создание и персистенция заказа (шаг Step Functions после валидации) |
 | `cancel_order` | стаб (501) | Отмена заказа |
 | `get_customer_orders` | ✅ реализован (FDS-21) | GET /orders — список заказов клиента |
 | `get_order_by_id` | ✅ реализован (FDS-21) | GET /orders/{id} — один заказ |
@@ -30,8 +31,8 @@ Supabase (Postgres), события — SNS/SQS, оркестрация — Step
 | Модуль | Слой | Статус |
 |---|---|---|
 | `orders/model/` | Order, OrderItem, DeliveryAddress, OrderStatus, CancelReason, OrderStatusHistory | ✅ (FDS-16) |
-| `orders/repository/` | `order_repository.py` — read-методы | ✅ (FDS-21) |
-| `orders/service/` | `order_read_service.py` | ✅ (FDS-21) |
+| `orders/repository/` | `order_repository.py` — read/write-методы | ✅ (FDS-21, FDS-24) |
+| `orders/service/` | `order_read_service.py`, `order_create_service.py` | ✅ (FDS-21, FDS-24) |
 | `orders/api/` | `dtos.py`, `mappers.py` | ✅ (FDS-21) |
 | `orders/validation/` | `cart_validation_service.py` | ✅ (FDS-21) |
 | `orders/state_machine/` | пусто | ❌ не начато |
@@ -60,9 +61,11 @@ Supabase (Postgres), события — SNS/SQS, оркестрация — Step
 - `orders/state_machine/` — логика переходов статусов заказа
 - `payments/client/` — HTTP-клиент к Payment Service
 - `events/consumer/` + `events/publisher/` — реальная обработка событий
-- `create_order`, `cancel_order`, `get_order_status`, `process_inbound_event` — бизнес-логика
+- `create_order` (API Gateway), `cancel_order`, `get_order_status`, `process_inbound_event` — бизнес-логика
+- Payment intent / payment step оркестрации — отдельная будущая задача
 - Тесты (`tests/` отсутствует)
 - CI/CD (есть только GitHub Actions для ruff)
+- ASL-определение state machine (пока задаётся в AWS-консоли / CloudFormation)
 
 ---
 
@@ -76,7 +79,7 @@ Supabase (Postgres), события — SNS/SQS, оркестрация — Step
 - **Линтер/форматтер:** `ruff format src scripts` + `ruff check --fix src scripts` + `ruff check src scripts`.
 - **Ошибки:** `AppError(http_status, code, message)` из `src/shared/errors/app_error.py`.
 - **Модели:** Python dataclasses в `src/modules/*/model/`.
-- **Ветка по умолчанию:** `FDS-21-order-validation-and-read-apis` (на 2026-07-02).
+- **Ветка по умолчанию:** `FDS-24-order-creation-and-persistence` (на 2026-07-05).
 
 ---
 
@@ -128,7 +131,27 @@ Supabase (Postgres), события — SNS/SQS, оркестрация — Step
 
 ---
 
+## 2026-07-05 — DeepSeek (deepseek-v4-pro) — FDS-24 order creation and persistence
+
+- **Цель:** реализовать создание и персистенцию заказа как шаг Step Functions
+  после успешной валидации корзины.
+- **Изменено:**
+  - `OrderItem` — `line_total` стал полем (не property), модель без расчётов.
+  - `Order` — добавлены поля `subtotal` (float, default 0.0) и `currency` (str, default "ILS"), убран property `total`.
+  - `order_repository.py` — добавлен `insert_order()` для записи заказа и позиций (items как JSONB).
+  - `order_create_service.py` (новый) — сервис создания заказа: snapshot позиций (name/price от Menu Service), расчёт line_total и subtotal, статус PENDING_PAYMENT, первая запись в status_history.
+  - `create_order_step/handler.py` (новый) — Lambda-хендлер: получает validated cart data, вызывает сервис, возвращает заказ для следующего шага.
+  - `validate_order/handler.py` — validated_items теперь включают `quantity` (из исходного запроса), чтобы CreateOrderStep мог считать line_total.
+  - `mappers.py` — адаптирован под новые поля (`subtotal`, `line_total`), убран ручной маппинг line_total (теперь идёт через asdict).
+  - `events/create-order-step.json` (новый) — тестовое событие для локального запуска CreateOrderStep.
+  - `orchestration/order-creation-state-machine.asl.json` (новый) — placeholder ASL-определения (CreateOrderStep после валидации).
+- **Открыто:** ASL-определение state machine отсутствует в репозитории (задаётся в AWS). Payment intent — отдельная будущая задача.
+- **Дальше:** реализовать payment step, state machine, создать тесты.
+
+---
+
 ## Лента
 
+- 2026-07-05 [DeepSeek/deepseek-v4-pro] реализовал FDS-24: CreateOrderStep с персистенцией, snapshot-ами позиций и статусом PENDING_PAYMENT (FDS-24)
 - 2026-07-02 [DeepSeek/deepseek-v4-pro] создал AGENTS.md, обновил .gitignore (.ruff_cache), пофиксил order_repository, validate_order handler, mappers, menu_service_client, readme (FDS-21)
 - 2026-07-02 [Codebuff/minimax-m3] создал бриф .local/handoff-to-deepseek-2026-07-02.md, добавил паттерны в .gitignore
