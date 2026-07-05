@@ -1,7 +1,4 @@
-"""Read access to orders stored in the database (FDS-21).
-
-Only read methods are implemented in this task; writes arrive later.
-"""
+"""Read/write access to orders stored in the database (FDS-21, FDS-24)."""
 
 from __future__ import annotations
 
@@ -41,6 +38,47 @@ def get_order_by_id(order_id: str) -> Order | None:
     return _row_to_order(rows[0]) if rows else None
 
 
+def insert_order(order: Order) -> None:
+    """Persist a new order row (FDS-24).
+
+    Items are embedded as a JSONB array inside the order row rather than
+    stored in a separate ``order_items`` table.  This matches the existing
+    read-side pattern in ``_row_to_order`` and keeps the repository surface
+    aligned with how reads already consume the data.
+    """
+    client = supabase_client.get_client()
+    row = {
+        "order_id": order.order_id,
+        "customer_id": order.customer_id,
+        "restaurant_id": order.restaurant_id,
+        "items": [
+            {
+                "menu_item_id": item.menu_item_id,
+                "name": item.name,
+                "quantity": item.quantity,
+                "unit_price": item.unit_price,
+                "line_total": item.line_total,
+            }
+            for item in order.items
+        ],
+        "delivery_address": {
+            "address_id": order.delivery_address.address_id,
+            "street": order.delivery_address.street,
+            "city": order.delivery_address.city,
+            "postal_code": order.delivery_address.postal_code,
+            "latitude": order.delivery_address.latitude,
+            "longitude": order.delivery_address.longitude,
+            "notes": order.delivery_address.notes,
+        },
+        "status": order.status.value,
+        "subtotal": order.subtotal,
+        "currency": order.currency,
+        "created_at": order.created_at,
+        "updated_at": order.updated_at,
+    }
+    client.table(_ORDERS_TABLE).insert(row).execute()
+
+
 def _row_to_order(row: dict) -> Order:
     # TODO(FDS-21): align field names with the final DB schema (Yaroslav).
     order_id = row["order_id"]
@@ -54,6 +92,7 @@ def _row_to_order(row: dict) -> Order:
             name=i["name"],
             quantity=int(i["quantity"]),
             unit_price=float(i["unit_price"]),
+            line_total=float(i.get("line_total", 0.0)),
         )
         for i in item_rows
     ]
@@ -67,6 +106,8 @@ def _row_to_order(row: dict) -> Order:
         items=items,
         delivery_address=delivery_address,
         status=OrderStatus(row.get("status", OrderStatus.CREATED.value)),
+        subtotal=float(row.get("subtotal", 0.0)),
+        currency=str(row.get("currency", "ILS")),
         created_at=row.get("created_at"),
         updated_at=row.get("updated_at"),
     )
