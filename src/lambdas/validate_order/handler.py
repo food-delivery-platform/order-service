@@ -24,8 +24,11 @@ def handler(event, context=None):
             "error": err.code,
             "message": err.message,
             "validated_items": [],
-        }
-
+        }  # Merge original quantities into the validated items so downstream steps
+    # (e.g. CreateOrderStep) can compute line totals without re-fetching.
+    # If a validated item has no matching cart entry (data inconsistency),
+    # quantity defaults to 0 — the service will produce a line_total of 0.
+    qty_by_id: dict[str, int] = {i["menu_item_id"]: int(i["quantity"]) for i in items}
     return {
         "order_id": event.get("order_id"),
         "customer_id": event.get("customer_id"),
@@ -33,11 +36,12 @@ def handler(event, context=None):
         "valid": result.valid,
         "validated_items": [
             {
-                "menu_item_id": i.menu_item_id,
-                "name": i.name,
-                "unit_price": i.unit_price,
-                "available": i.available,
+                "menu_item_id": vi.menu_item_id,
+                "name": vi.name,
+                "unit_price": vi.unit_price,
+                "quantity": qty_by_id.get(vi.menu_item_id, 0),
+                "available": vi.available,
             }
-            for i in result.items
+            for vi in result.items
         ],
     }

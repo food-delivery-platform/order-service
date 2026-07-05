@@ -1,4 +1,4 @@
-"""Map internal Order models to API response shapes (FDS-21)."""
+"""Map internal Order models to API response shapes (FDS-21, FDS-24)."""
 
 from __future__ import annotations
 
@@ -10,14 +10,14 @@ from src.modules.orders.model.order import Order
 def to_order_response(order: Order) -> dict:
     """Serialize an Order (incl. delivery_address) to a response dict.
 
-    Uses dataclasses.asdict for the field mapping and then adds the computed
-    @property values (total, line_total), which asdict does not include.
+    Uses dataclasses.asdict for the field mapping.  line_total is now a
+    regular OrderItem field (FDS-24) so asdict includes it automatically.
+    Internal fields (status_history, cancel_reason, currency) are stripped.
     """
     data = asdict(order)
     data.pop("status_history", None)
     data.pop("cancel_reason", None)
+    data.pop("currency", None)
     data["status"] = order.status.value
-    data["total"] = order.total
-    for item, item_data in zip(order.items, data["items"]):
-        item_data["line_total"] = item.line_total
+    data["total"] = order.subtotal
     return data
