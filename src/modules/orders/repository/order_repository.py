@@ -76,7 +76,7 @@ def insert_order(order: Order) -> None:
         "created_at": order.created_at,
         "updated_at": order.updated_at,
     }
-    client.table(_ORDERS_TABLE).insert(row).execute()
+    client.table(_ORDERS_TABLE).upsert(row, on_conflict="order_id").execute()
 
 
 def _row_to_order(row: dict) -> Order:
