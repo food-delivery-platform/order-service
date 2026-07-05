@@ -145,13 +145,20 @@ Supabase (Postgres), события — SNS/SQS, оркестрация — Step
   - `mappers.py` — адаптирован под новые поля (`subtotal`, `line_total`), убран ручной маппинг line_total (теперь идёт через asdict).
   - `events/create-order-step.json` (новый) — тестовое событие для локального запуска CreateOrderStep.
   - `orchestration/order-creation-state-machine.asl.json` (новый) — placeholder ASL-определения (CreateOrderStep после валидации).
-- **Открыто:** ASL-определение state machine отсутствует в репозитории (задаётся в AWS). Payment intent — отдельная будущая задача.
+- **Открыто:**
+  - ASL-определение state machine отсутствует в репозитории (задаётся в AWS). Payment intent — отдельная будущая задача.
+  - Хранение позиций: items embedded как JSONB (единообразно с чтением FDS-21);
+    отдельная таблица order_items — на решение Дениса.
+  - РИСК: delivery_address не пробрасывается из validate_order в CreateOrderStep,
+    и deliveryAddressId нигде не резолвится в полный адрес → шаг упадёт в реальном
+    потоке. Нужно решение (ResultPath / проброс входа / шаг резолва адреса).
 - **Дальше:** реализовать payment step, state machine, создать тесты.
 
 ---
 
 ## Лента
 
+- 2026-07-05 [DeepSeek] хотфикс validate_order: убран декартов цикл в validated_items; insert_order сделан идемпотентным (FDS-24)
 - 2026-07-05 [DeepSeek/deepseek-v4-pro] реализовал FDS-24: CreateOrderStep с персистенцией, snapshot-ами позиций и статусом PENDING_PAYMENT (FDS-24)
 - 2026-07-02 [DeepSeek/deepseek-v4-pro] создал AGENTS.md, обновил .gitignore (.ruff_cache), пофиксил order_repository, validate_order handler, mappers, menu_service_client, readme (FDS-21)
 - 2026-07-02 [Codebuff/minimax-m3] создал бриф .local/handoff-to-deepseek-2026-07-02.md, добавил паттерны в .gitignore
