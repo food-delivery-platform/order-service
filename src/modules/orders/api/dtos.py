@@ -1,4 +1,4 @@
-"""Request/response DTOs for Order Service API endpoints (FDS-16).
+"""Request/response DTOs for Order Service API endpoints (FDS-16, FDS-25).
 
 DTOs are the shapes that cross the API boundary; they are intentionally
 separate from the internal domain models.
@@ -18,11 +18,24 @@ class CreateOrderItemDTO:
 
 
 @dataclass
+class DeliveryAddressDTO:
+    """Full delivery address carried in the create-order request (FDS-25)."""
+
+    street: str
+    city: str
+    postal_code: str
+    latitude: float | None = None
+    longitude: float | None = None
+    notes: str | None = None
+
+
+@dataclass
 class CreateOrderRequest:
     customer_id: str
     restaurant_id: str
     items: list[CreateOrderItemDTO]
-    delivery_address_id: str
+    delivery_address: DeliveryAddressDTO
+    delivery_address_id: str | None = None  # optional, if address already exists
 
 
 @dataclass

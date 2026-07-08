@@ -13,6 +13,10 @@ def handler(event, context=None):
     restaurant_id = event["restaurant_id"]
     items = event.get("items", [])
 
+    # --- pass-through fields: downstream steps need these ---
+    delivery_address = event.get("delivery_address")
+    delivery_address_id = event.get("delivery_address_id")
+
     try:
         result = cart_validation_service.validate_cart(restaurant_id, items)
     except AppError as err:
@@ -20,11 +24,15 @@ def handler(event, context=None):
             "order_id": event.get("order_id"),
             "customer_id": event.get("customer_id"),
             "restaurant_id": restaurant_id,
+            "delivery_address": delivery_address,
+            "delivery_address_id": delivery_address_id,
             "valid": False,
             "error": err.code,
             "message": err.message,
             "validated_items": [],
-        }  # Merge original quantities into the validated items so downstream steps
+        }
+
+    # Merge original quantities into the validated items so downstream steps
     # (e.g. CreateOrderStep) can compute line totals without re-fetching.
     # If a validated item has no matching cart entry (data inconsistency),
     # quantity defaults to 0 — the service will produce a line_total of 0.
@@ -33,6 +41,8 @@ def handler(event, context=None):
         "order_id": event.get("order_id"),
         "customer_id": event.get("customer_id"),
         "restaurant_id": restaurant_id,
+        "delivery_address": delivery_address,
+        "delivery_address_id": delivery_address_id,
         "valid": result.valid,
         "validated_items": [
             {

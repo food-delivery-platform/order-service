@@ -24,6 +24,7 @@ Supabase (Postgres), события — SNS/SQS, оркестрация — Step
 | `get_order_by_id` | ✅ реализован (FDS-21) | GET /orders/{id} — один заказ |
 | `get_order_status` | стаб (501) | Статус заказа |
 | `validate_order` | ✅ реализован (FDS-21) | Валидация корзины через Menu Service (шаг Step Functions) |
+| `resolve_delivery_address` | ✅ реализован (FDS-25) | Резолвинг адреса доставки (create-or-verify, шаг Step Functions) |
 | `process_inbound_event` | стаб (501) | Обработчик входящих событий (SQS) |
 
 ### Feature-модули (`src/modules/`)
@@ -138,7 +139,8 @@ Supabase (Postgres), события — SNS/SQS, оркестрация — Step
 - **Изменено:**
   - `OrderItem` — `line_total` стал полем (не property), модель без расчётов.
   - `Order` — добавлены поля `subtotal` (float, default 0.0) и `currency` (str, default "ILS"), убран property `total`.
-  - `order_repository.py` — добавлен `insert_order()` для записи заказа и позиций (items как JSONB).
+  - `order_repository.py` — добавлен `insert_order()` для записи заказа и позиций
+    (изначально JSONB, затем переведён на таблицу `order_items` через RPC).
   - `order_create_service.py` (новый) — сервис создания заказа: snapshot позиций (name/price от Menu Service), расчёт line_total и subtotal, статус PENDING_PAYMENT, первая запись в status_history.
   - `create_order_step/handler.py` (новый) — Lambda-хендлер: получает validated cart data, вызывает сервис, возвращает заказ для следующего шага.
   - `validate_order/handler.py` — validated_items теперь включают `quantity` (из исходного запроса), чтобы CreateOrderStep мог считать line_total.
@@ -147,17 +149,42 @@ Supabase (Postgres), события — SNS/SQS, оркестрация — Step
   - `orchestration/order-creation-state-machine.asl.json` (новый) — placeholder ASL-определения (CreateOrderStep после валидации).
 - **Открыто:**
   - ASL-определение state machine отсутствует в репозитории (задаётся в AWS). Payment intent — отдельная будущая задача.
-  - Хранение позиций: items embedded как JSONB (единообразно с чтением FDS-21);
-    отдельная таблица order_items — на решение Дениса.
+  - ~~Хранение позиций: items embedded как JSONB~~ → **Решено:** отдельная таблица
+    `order_items`, атомарный upsert через RPC `upsert_order_with_items`.
+    Чтение — PostgREST resource embedding (`*, order_items(*)`).
   - РИСК: delivery_address не пробрасывается из validate_order в CreateOrderStep,
     и deliveryAddressId нигде не резолвится в полный адрес → шаг упадёт в реальном
-    потоке. Нужно решение (ResultPath / проброс входа / шаг резолва адреса).
+    потоке. **Решено (FDS-25):** добавлен шаг ResolveAddress (отдельная Lambda)
+    между валидацией и CreateOrderStep.
 - **Дальше:** реализовать payment step, state machine, создать тесты.
+
+---
+
+## 2026-07-08 — DeepSeek (deepseek-v4-pro) — FDS-25 resolve delivery address
+
+- **Цель:** добавить шаг резолвинга адреса доставки между валидацией корзины
+  и созданием заказа (по решению Дениса).
+- **Изменено:**
+  - `dtos.py` — `CreateOrderRequest` теперь несёт полный `delivery_address`
+    (`DeliveryAddressDTO`) + опциональный `delivery_address_id`.
+  - `resolve_delivery_address/handler.py` (новый) — Lambda-хендлер:
+    create-or-verify логика (нет id → создать; есть id → проверить).
+  - `order-creation-state-machine.asl.json` — добавлен шаг `ResolveAddress`
+    между `CartValidChoice` и `CreateOrderStep` с `ResultPath: $.delivery_address`.
+  - `events/resolve-delivery-address-with-id.json` (новый) — тест-ивент: случай с существующим адресом.
+  - `events/resolve-delivery-address-no-id.json` (новый) — тест-ивент: случай с новым адресом.
+- **Решено:** адреса хранятся локально в таблице `addresses` (Supabase).
+  Стабы заменены на реальные вызовы `address_repository`.
+- **Открыто:** —
+- **Дальше:** заменить стабы реальными вызовами к User Service / таблице
+  `addresses`; реализовать `process_payment`.
 
 ---
 
 ## Лента
 
+- 2026-07-08 [DeepSeek/deepseek-v4-pro] FDS-25: стабы адресов заменены на реальную таблицу `addresses` в Supabase — модель `CustomerAddress`, репозиторий `address_repository`
+- 2026-07-08 [DeepSeek/deepseek-v4-pro] FDS-24: persistence переведён на таблицу order_items (решение Дениса); insert_order идемпотентен через RPC upsert_order_with_items; чтение через PostgREST resource embedding (A1-A2)
 - 2026-07-05 [DeepSeek] хотфикс validate_order: убран декартов цикл в validated_items; insert_order сделан идемпотентным (FDS-24)
 - 2026-07-05 [DeepSeek/deepseek-v4-pro] реализовал FDS-24: CreateOrderStep с персистенцией, snapshot-ами позиций и статусом PENDING_PAYMENT (FDS-24)
 - 2026-07-02 [DeepSeek/deepseek-v4-pro] создал AGENTS.md, обновил .gitignore (.ruff_cache), пофиксил order_repository, validate_order handler, mappers, menu_service_client, readme (FDS-21)

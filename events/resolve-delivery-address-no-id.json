@@ -1,0 +1,24 @@
+{
+  "$comment": "Test event for resolve_delivery_address — case: WITHOUT deliveryAddressId (FDS-25).",
+  "order_id": "order-test1a2b3c",
+  "customer_id": "cust-001",
+  "restaurant_id": "rest-42",
+  "valid": true,
+  "validated_items": [
+    {
+      "menu_item_id": "item-001",
+      "name": "Margherita Pizza",
+      "unit_price": 45.0,
+      "quantity": 2,
+      "available": true
+    }
+  ],
+  "delivery_address": {
+    "street": "1 Herzl St",
+    "city": "Haifa",
+    "postal_code": "3310101",
+    "latitude": 32.7940,
+    "longitude": 34.9896,
+    "notes": "Floor 3, Apt 12"
+  }
+}

@@ -1,7 +1,7 @@
 {
-  "$comment": "Step Functions state machine for Order Creation (FDS-24 draft).",
+  "$comment": "Step Functions state machine for Order Creation (FDS-24, FDS-25).",
   "$note": "This ASL is a placeholder — the actual definition lives in AWS (console or CloudFormation). Use this as a reference for the intended flow.",
-  "Comment": "Order Creation State Machine — validate cart, create order, process payment",
+  "Comment": "Order Creation State Machine — validate cart, resolve address, create order, process payment",
   "StartAt": "ValidateCart",
   "States": {
     "ValidateCart": {
@@ -15,10 +15,17 @@
         {
           "Variable": "$.valid",
           "BooleanEquals": true,
-          "Next": "CreateOrderStep"
+          "Next": "ResolveAddress"
         }
       ],
       "Default": "CartInvalidFail"
+    },
+    "ResolveAddress": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:...:function:resolve_delivery_address",
+      "Comment": "FDS-25: create new address or verify existing one; output merged via ResultPath into $.delivery_address",
+      "ResultPath": "$.delivery_address",
+      "Next": "CreateOrderStep"
     },
     "CreateOrderStep": {
       "Type": "Task",
