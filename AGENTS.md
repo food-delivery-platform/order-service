@@ -181,8 +181,64 @@ Supabase (Postgres), события — SNS/SQS, оркестрация — Step
 
 ---
 
+---
+
+## 2026-07-08 — DeepSeek (deepseek-v4-pro) — FDS-24 приведение persistence к реальной схеме БД
+
+- **Цель:** выровнять persistence по реальной схеме БД (подтверждённой Ярославом):
+  колонки `orders` (id/venue_id/delivery_address_id/...), `order_items`
+  (menu_item_name, ...), `order_status_history` (отдельная таблица).
+- **Изменено:**
+  - `scripts/order_items_rpc.sql` — RPC переписан под 3 таблицы: UPSERT orders
+    (ON CONFLICT id), delete-then-insert order_items, INSERT order_status_history
+    с NOT EXISTS guard (идемпотентно).
+  - `order_repository.py` — payload и `_row_to_order` под реальные колонки:
+    orders.id/venue_id/delivery_address_id, order_items.menu_item_name,
+    order_status_history.to_status/created_at/note. Убран `_row_to_address`,
+    вместо него — DeliveryAddress(address_id=...) с None-полями.
+  - `DeliveryAddress` — street/city/postal_code стали опциональными (None by default).
+  - `create_order_step/handler.py` — принимает `delivery_address_id` вместо
+    полного address-объекта (адрес = FK, резолвится в FDS-25).
+  - `order_create_service.py` — сигнатура `delivery_address_id: str`, внутри
+    создаётся DeliveryAddress(address_id=...) без полей адреса.
+  - `mappers.py` — убран `data.pop("currency", None)`, валюта сохраняется в ответе API.
+  - `events/create-order-step.json` — обновлён под `delivery_address_id`.
+- **Решено:** адрес хранится по delivery_address_id (реляционно); история статуса —
+  в отдельной таблице order_status_history.
+- **Открыто:**
+  - **total** — это `subtotal + delivery_fee`? `total`/`delivery_fee` — NOT NULL? (→ Ярослав)
+  - **order_status_history при создании** — `from_status` = NULL допустим?
+    `actor_id`/`actor_type` — customer или system? Запись делает наш шаг или
+    триггер БД? (→ Ярослав)
+  - **Таблица адресов** — как называется (куда FK delivery_address_id) и должен ли
+    адрес существовать ДО создания заказа? (→ Денис / Ярослав; будущий FDS-25)
+- **Дальше:** дождаться ответов на CONFIRM; задеплоить RPC; протестировать
+  локально; реализовать payment step.
+
+---
+
+---
+
+## 2026-07-08 — DeepSeek (deepseek-v4-pro) — FDS-24 pydantic validation + tests folder
+
+- **Цель:** заменить ручные проверки в create_order_step на pydantic; создать tests/.
+- **Изменено:**
+  - `requirements.txt` — добавлены pydantic>=2.6, pytest>=8.0.
+  - `src/lambdas/create_order_step/schema.py` (новый) — pydantic-модель CreateOrderStepEvent с вложенными DeliveryAddressInput / ValidatedItemInput.
+  - `create_order_step/handler.py` — ручные `if not` проверки заменены на `CreateOrderStepEvent(**event)`, ValidationError → AppError(400, "INVALID_EVENT").
+  - `order_create_service.py` — параметр `delivery_address_id: str` → `delivery_address: DeliveryAddress`.
+  - Создана папка `tests/` (unit + fixtures/events). Все 11 JSON-файлов из `events/` → `tests/fixtures/events/`.
+  - `tests/unit/test_create_order_step_schema.py` (новый) — 3 теста на валидацию.
+  - `scripts/invoke_local.py` — docstring обновлён на новый путь к events.
+- **Открыто:** —
+- **Дальше:** перевод на SQLAlchemy (убрать Supabase), process_payment.
+
+---
+
 ## Лента
 
+- 2026-07-08 [DeepSeek/deepseek-v4-pro] FDS-24: валидация входа create_order_step через pydantic (CreateOrderStepEvent); создана папка tests/ (fixtures/events + unit), events перенесены
+- 2026-07-08 [DeepSeek/deepseek-v4-pro] FDS-24: persistence выровнен по реальной схеме (orders.id/venue_id/delivery_address_id, order_items.menu_item_name, order_status_history); RPC пишет 3 таблицы атомарно
 - 2026-07-08 [DeepSeek/deepseek-v4-pro] FDS-25: стабы адресов заменены на реальную таблицу `addresses` в Supabase — модель `CustomerAddress`, репозиторий `address_repository`
 - 2026-07-08 [DeepSeek/deepseek-v4-pro] FDS-24: persistence переведён на таблицу order_items (решение Дениса); insert_order идемпотентен через RPC upsert_order_with_items; чтение через PostgREST resource embedding (A1-A2)
 - 2026-07-05 [DeepSeek] хотфикс validate_order: убран декартов цикл в validated_items; insert_order сделан идемпотентным (FDS-24)

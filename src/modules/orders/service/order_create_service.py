@@ -37,7 +37,8 @@ def create_order(
         List of dicts from the validate_order step::
             {menu_item_id, name, unit_price, quantity}
     delivery_address:
-        Where the order should be delivered.
+        Fully resolved DeliveryAddress from the upstream resolve-address step
+        (FDS-25).
     order_id:
         Optional pre-generated order id.  A new one is created when omitted.
 

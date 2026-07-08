@@ -1,68 +1,49 @@
 """Step Functions step — create and persist an order (FDS-24).
 
-This step runs RIGHT AFTER a successful cart validation.  It receives the
-validated cart data, snapshots every line item, computes totals, persists the
-order via the repository, and returns it as input for the next step (payment).
+This step runs RIGHT AFTER a successful address resolution.  It receives the
+validated cart data and a resolved delivery_address, snapshots every line
+item, computes totals, persists the order via the repository, and returns it
+as input for the next step (payment).
+
+Input validation is handled by the ``CreateOrderStepEvent`` pydantic model
+— no manual ``if not`` checks.
 """
 
 from __future__ import annotations
 
+from pydantic import ValidationError
+
+from src.lambdas.create_order_step.schema import CreateOrderStepEvent
 from src.modules.orders.model.delivery_address import DeliveryAddress
 from src.modules.orders.service import order_create_service
 from src.shared.errors.app_error import AppError
 
 
 def handler(event, context=None):
-    order_id = event.get("order_id")
-    customer_id = event.get("customer_id")
-    restaurant_id = event.get("restaurant_id")
-    validated_items = event.get("validated_items", [])
+    # --- pydantic validation (replaces all manual guards) ---
+    try:
+        data = CreateOrderStepEvent(**event)
+    except ValidationError as e:
+        raise AppError(400, "INVALID_EVENT", str(e)) from e
 
-    if not customer_id:
-        raise AppError(400, "MISSING_CUSTOMER_ID", "customer_id is required")
-    if not restaurant_id:
-        raise AppError(400, "MISSING_RESTAURANT_ID", "restaurant_id is required")
-    if not validated_items:
-        raise AppError(400, "EMPTY_CART", "validated_items must not be empty")
-
-    # Build DeliveryAddress from the event.  In production the address is
-    # threaded through the Step Functions input; for local testing it can be
-    # included in the event.
-    address_data = event.get("delivery_address")
-    if not address_data:
-        raise AppError(
-            400,
-            "MISSING_DELIVERY_ADDRESS",
-            "delivery_address is required to create an order",
-        )
-    missing = [
-        f
-        for f in ("address_id", "street", "city", "postal_code")
-        if not address_data.get(f)
-    ]
-    if missing:
-        raise AppError(
-            400,
-            "INCOMPLETE_DELIVERY_ADDRESS",
-            f"delivery_address missing fields: {', '.join(missing)}",
-        )
+    # Build domain DeliveryAddress from the validated input.
     delivery_address = DeliveryAddress(
-        address_id=address_data["address_id"],
-        street=address_data["street"],
-        city=address_data["city"],
-        postal_code=address_data["postal_code"],
-        latitude=address_data.get("latitude"),
-        longitude=address_data.get("longitude"),
-        notes=address_data.get("notes"),
+        address_id=data.delivery_address.address_id,
+        street=data.delivery_address.street,
+        city=data.delivery_address.city,
+        postal_code=data.delivery_address.postal_code,
+        latitude=data.delivery_address.latitude,
+        longitude=data.delivery_address.longitude,
+        notes=data.delivery_address.notes,
     )
 
     try:
         order = order_create_service.create_order(
-            customer_id=customer_id,
-            restaurant_id=restaurant_id,
-            validated_items=validated_items,
+            customer_id=data.customer_id,
+            restaurant_id=data.restaurant_id,
+            validated_items=[i.model_dump() for i in data.validated_items],
             delivery_address=delivery_address,
-            order_id=order_id,
+            order_id=data.order_id,
         )
     except AppError:
         raise
