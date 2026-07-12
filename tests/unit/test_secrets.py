@@ -23,23 +23,36 @@ class TestGetServiceSecret:
         assert result == {}
 
     def test_parses_json_secret_and_returns_dict(self, monkeypatch):
-        monkeypatch.setenv("SERVICE_SECRET_ARN", "arn:aws:secretsmanager:eu-west-1:123456789:secret:test")
-        secret_body = {"SUPABASE_URL": "https://db.example.com", "SUPABASE_SERVICE_ROLE_KEY": "sk-xyz"}
+        monkeypatch.setenv(
+            "SERVICE_SECRET_ARN",
+            "arn:aws:secretsmanager:eu-west-1:123456789:secret:test",
+        )
+        secret_body = {
+            "SUPABASE_URL": "https://db.example.com",
+            "SUPABASE_SERVICE_ROLE_KEY": "sk-xyz",
+        }
 
         with patch("boto3.client") as mock_boto:
             mock_client = mock_boto.return_value
-            mock_client.get_secret_value.return_value = {"SecretString": json.dumps(secret_body)}
+            mock_client.get_secret_value.return_value = {
+                "SecretString": json.dumps(secret_body)
+            }
             result = secrets.get_service_secret()
 
         assert result == secret_body
 
     def test_caches_secret_so_client_called_once(self, monkeypatch):
-        monkeypatch.setenv("SERVICE_SECRET_ARN", "arn:aws:secretsmanager:eu-west-1:123456789:secret:test")
+        monkeypatch.setenv(
+            "SERVICE_SECRET_ARN",
+            "arn:aws:secretsmanager:eu-west-1:123456789:secret:test",
+        )
         secret_body = {"KEY": "value"}
 
         with patch("boto3.client") as mock_boto:
             mock_client = mock_boto.return_value
-            mock_client.get_secret_value.return_value = {"SecretString": json.dumps(secret_body)}
+            mock_client.get_secret_value.return_value = {
+                "SecretString": json.dumps(secret_body)
+            }
 
             secrets.get_service_secret()
             secrets.get_service_secret()  # second call – should use cache
@@ -50,7 +63,10 @@ class TestGetServiceSecret:
             assert mock_client.get_secret_value.call_count == 1
 
     def test_raises_runtime_error_on_failure(self, monkeypatch):
-        monkeypatch.setenv("SERVICE_SECRET_ARN", "arn:aws:secretsmanager:eu-west-1:123456789:secret:test")
+        monkeypatch.setenv(
+            "SERVICE_SECRET_ARN",
+            "arn:aws:secretsmanager:eu-west-1:123456789:secret:test",
+        )
 
         with patch("boto3.client") as mock_boto:
             mock_client = mock_boto.return_value
@@ -60,7 +76,10 @@ class TestGetServiceSecret:
                 secrets.get_service_secret()
 
     def test_empty_secret_string_parsed_as_empty_dict(self, monkeypatch):
-        monkeypatch.setenv("SERVICE_SECRET_ARN", "arn:aws:secretsmanager:eu-west-1:123456789:secret:test")
+        monkeypatch.setenv(
+            "SERVICE_SECRET_ARN",
+            "arn:aws:secretsmanager:eu-west-1:123456789:secret:test",
+        )
 
         with patch("boto3.client") as mock_boto:
             mock_client = mock_boto.return_value

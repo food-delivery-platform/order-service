@@ -27,7 +27,10 @@ class TestHydrateFromSecret:
 
     def test_secret_value_wins_over_env(self, monkeypatch):
         """Secret value takes priority over plain env."""
-        monkeypatch.setenv("SERVICE_SECRET_ARN", "arn:aws:secretsmanager:eu-west-1:123456789:secret:test")
+        monkeypatch.setenv(
+            "SERVICE_SECRET_ARN",
+            "arn:aws:secretsmanager:eu-west-1:123456789:secret:test",
+        )
         monkeypatch.setenv("SUPABASE_URL", "https://env.example.com")
 
         _clear_secrets_cache()
@@ -35,7 +38,9 @@ class TestHydrateFromSecret:
         with patch("boto3.client") as mock_boto:
             mock_client = mock_boto.return_value
             mock_client.get_secret_value.return_value = {
-                "SecretString": json.dumps({"SUPABASE_URL": "https://secret.example.com"})
+                "SecretString": json.dumps(
+                    {"SUPABASE_URL": "https://secret.example.com"}
+                )
             }
             importlib.reload(env_module)
 
@@ -43,7 +48,10 @@ class TestHydrateFromSecret:
 
     def test_env_fallback_when_key_not_in_secret(self, monkeypatch):
         """When the secret doesn't have the key, env is used as fallback."""
-        monkeypatch.setenv("SERVICE_SECRET_ARN", "arn:aws:secretsmanager:eu-west-1:123456789:secret:test")
+        monkeypatch.setenv(
+            "SERVICE_SECRET_ARN",
+            "arn:aws:secretsmanager:eu-west-1:123456789:secret:test",
+        )
         monkeypatch.setenv("SUPABASE_URL", "https://env.example.com")
 
         _clear_secrets_cache()
@@ -68,7 +76,10 @@ class TestHydrateFromSecret:
 
     def test_empty_string_in_secret_is_not_overridden_by_env(self, monkeypatch):
         """Empty string in secret should be used as-is, not fall through to env."""
-        monkeypatch.setenv("SERVICE_SECRET_ARN", "arn:aws:secretsmanager:eu-west-1:123456789:secret:test")
+        monkeypatch.setenv(
+            "SERVICE_SECRET_ARN",
+            "arn:aws:secretsmanager:eu-west-1:123456789:secret:test",
+        )
         monkeypatch.setenv("SUPABASE_URL", "https://env.example.com")
 
         _clear_secrets_cache()
