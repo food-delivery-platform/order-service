@@ -1,0 +1,25 @@
+{
+  "$comment": "Test event for resolve_delivery_address — case: WITH deliveryAddressId (FDS-25).",
+  "order_id": "order-test1a2b3c",
+  "customer_id": "cust-001",
+  "restaurant_id": "rest-42",
+  "valid": true,
+  "validated_items": [
+    {
+      "menu_item_id": "item-001",
+      "name": "Margherita Pizza",
+      "unit_price": 45.0,
+      "quantity": 2,
+      "available": true
+    }
+  ],
+  "delivery_address": {
+    "street": "123 Rothschild Blvd",
+    "city": "Tel Aviv",
+    "postal_code": "6688111",
+    "latitude": 32.0666,
+    "longitude": 34.7741,
+    "notes": "Ring the intercom #7"
+  },
+  "delivery_address_id": "addr-home-01"
+}

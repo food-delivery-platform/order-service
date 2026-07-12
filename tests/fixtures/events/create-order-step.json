@@ -1,0 +1,39 @@
+{
+  "$comment": "Output of the validate_order + resolve_delivery_address steps — the input to CreateOrderStep (FDS-24).",
+  "order_id": "order-test1a2b3c",
+  "customer_id": "cust-001",
+  "restaurant_id": "rest-42",
+  "valid": true,
+  "validated_items": [
+    {
+      "menu_item_id": "item-001",
+      "name": "Margherita Pizza",
+      "unit_price": 45.0,
+      "quantity": 2,
+      "available": true
+    },
+    {
+      "menu_item_id": "item-002",
+      "name": "Caesar Salad",
+      "unit_price": 32.5,
+      "quantity": 1,
+      "available": true
+    },
+    {
+      "menu_item_id": "item-003",
+      "name": "Coke Zero",
+      "unit_price": 10.0,
+      "quantity": 3,
+      "available": true
+    }
+  ],
+  "delivery_address": {
+    "address_id": "addr-home-01",
+    "street": "123 Rothschild Blvd",
+    "city": "Tel Aviv",
+    "postal_code": "6688111",
+    "latitude": 32.0666,
+    "longitude": 34.7741,
+    "notes": "Ring the intercom #7"
+  }
+}

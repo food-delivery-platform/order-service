@@ -1,4 +1,8 @@
-"""Single line item inside an order (FDS-16)."""
+"""Single line item inside an order (FDS-16, FDS-24).
+
+All fields are a snapshot captured at order-creation time. No calculations
+live inside the model — the service layer computes line_total and subtotal.
+"""
 
 from __future__ import annotations
 
@@ -11,7 +15,4 @@ class OrderItem:
     name: str
     quantity: int
     unit_price: float
-
-    @property
-    def line_total(self) -> float:
-        return round(self.unit_price * self.quantity, 2)
+    line_total: float = 0.0

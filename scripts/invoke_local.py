@@ -5,7 +5,7 @@ Usage:
 
 Example:
     python scripts/invoke_local.py health
-    python scripts/invoke_local.py create_order events/create-order.json
+    python scripts/invoke_local.py create_order tests/fixtures/events/create-order.json
 """
 
 import importlib

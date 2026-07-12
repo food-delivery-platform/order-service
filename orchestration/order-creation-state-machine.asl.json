@@ -1,0 +1,48 @@
+{
+  "$comment": "Step Functions state machine for Order Creation (FDS-24, FDS-25).",
+  "$note": "This ASL is a placeholder — the actual definition lives in AWS (console or CloudFormation). Use this as a reference for the intended flow.",
+  "Comment": "Order Creation State Machine — validate cart, resolve address, create order, process payment",
+  "StartAt": "ValidateCart",
+  "States": {
+    "ValidateCart": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:...:function:validate_order",
+      "Next": "CartValidChoice"
+    },
+    "CartValidChoice": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.valid",
+          "BooleanEquals": true,
+          "Next": "ResolveAddress"
+        }
+      ],
+      "Default": "CartInvalidFail"
+    },
+    "ResolveAddress": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:...:function:resolve_delivery_address",
+      "Comment": "FDS-25: create new address or verify existing one; output merged via ResultPath into $.delivery_address",
+      "ResultPath": "$.delivery_address",
+      "Next": "CreateOrderStep"
+    },
+    "CreateOrderStep": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:...:function:create_order_step",
+      "Comment": "FDS-24: snapshot items, compute totals, persist order with PENDING_PAYMENT",
+      "Next": "ProcessPayment"
+    },
+    "ProcessPayment": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:...:function:process_payment",
+      "Comment": "Future task — triggers Payment Service",
+      "End": true
+    },
+    "CartInvalidFail": {
+      "Type": "Fail",
+      "Error": "CART_VALIDATION_FAILED",
+      "Cause": "Menu Service rejected the cart"
+    }
+  }
+}

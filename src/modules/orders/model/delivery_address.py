@@ -8,9 +8,9 @@ from dataclasses import dataclass
 @dataclass
 class DeliveryAddress:
     address_id: str
-    street: str
-    city: str
-    postal_code: str
+    street: str | None = None
+    city: str | None = None
+    postal_code: str | None = None
     latitude: float | None = None
     longitude: float | None = None
     notes: str | None = None
