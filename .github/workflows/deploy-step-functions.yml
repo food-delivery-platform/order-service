@@ -74,6 +74,13 @@ jobs:
               ACTION="created"
             fi
 
+            # Wait until the function finishes creating/updating before patching config
+            if [ "${ACTION}" = "created" ]; then
+              aws lambda wait function-active-v2 --function-name "${func}" --no-cli-pager
+            else
+              aws lambda wait function-updated-v2 --function-name "${func}" --no-cli-pager
+            fi
+
             # Merge SERVICE_SECRET_ARN into existing env vars.
             # get-function-configuration returns "null" when there are no env vars;
             # coerce that to {} before merging.
@@ -90,6 +97,8 @@ jobs:
               --function-name "${func}" \
               --environment "{\"Variables\": ${MERGED_VARS}}" \
               --no-cli-pager
+
+            aws lambda wait function-updated-v2 --function-name "${func}" --no-cli-pager
 
             echo "${func}: ${ACTION}" >> "${SUMMARY_FILE}"
             echo "::endgroup::"
