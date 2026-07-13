@@ -262,6 +262,7 @@ FDS-25 snapshot (2026-07-12):
 
 ## Лента
 
+- 2026-07-13 [DeepSeek/deepseek-v4-pro] FDS-25: switch CI to OIDC (AWS_ROLE_ARN), add deploy branch for pre-merge test
 - 2026-07-13 [DeepSeek/deepseek-v4-pro] FDS-25: fix SERVICE_SECRET_ARN reference — read from GitHub Secrets (not vars) for consistency with other AWS values
 - 2026-07-12 [DeepSeek/deepseek-v4-pro] FDS-25: hydrate DB credentials from Secrets Manager with env fallback (env.py _hydrate + tests)
 - 2026-07-12 [DeepSeek/deepseek-v4-pro] FDS-25: document deployment secrets and least-privilege IAM (docs/deployment.md)
