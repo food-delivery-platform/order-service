@@ -80,7 +80,7 @@ jobs:
               --output json \
               --no-cli-pager 2>/dev/null || echo "{}")
             MERGED_VARS=$(echo "${EXISTING_VARS}" | jq -c \
-              --arg arn "${{ vars.SERVICE_SECRET_ARN }}" \
+              --arg arn "${{ secrets.SERVICE_SECRET_ARN }}" \
               '(. // {}) + {SERVICE_SECRET_ARN: $arn}')
 
             aws lambda update-function-configuration \

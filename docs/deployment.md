@@ -14,12 +14,7 @@ Trigger: push to `main` branch, or manual (`workflow_dispatch`).
 | `LAMBDA_EXECUTION_ROLE_ARN` | IAM role ARN assigned to Lambda functions |
 | `AWS_STEP_FUNCTIONS_ROLE_ARN` | IAM role ARN for Step Functions execution |
 | `AWS_STEP_FUNCTIONS_STATE_MACHINE_NAME` | Name of the Step Functions state machine |
-
-## Required GitHub Variable
-
-| Variable | Purpose |
-|---|---|
-| `SERVICE_SECRET_ARN` | ARN of the Secrets Manager secret holding credentials. The **secret value** NEVER enters this variable — only the ARN. |
+| `SERVICE_SECRET_ARN` | ARN of the Secrets Manager secret holding credentials. The **secret value** NEVER enters this secret — only the ARN. |
 
 > **Security note:** The secret **value** is fetched at Lambda runtime via
 > `src/shared/config/secrets.py`. It never appears in environment variables,

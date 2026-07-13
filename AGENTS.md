@@ -254,11 +254,15 @@ FDS-25 snapshot (2026-07-12):
   GitHub secrets/variables, IAM policies for deployer and Lambda execution role.
 - **Secret VALUE never** enters env vars, logs, CI output, or committed files —
   only the ARN is passed.
+- **SERVICE_SECRET_ARN** is stored as a GitHub repository **Secret** (not Variable)
+  for consistency with all other AWS values in the deploy workflow.
+  `docs/deployment.md` reflects this.
 
 ---
 
 ## Лента
 
+- 2026-07-13 [DeepSeek/deepseek-v4-pro] FDS-25: fix SERVICE_SECRET_ARN reference — read from GitHub Secrets (not vars) for consistency with other AWS values
 - 2026-07-12 [DeepSeek/deepseek-v4-pro] FDS-25: hydrate DB credentials from Secrets Manager with env fallback (env.py _hydrate + tests)
 - 2026-07-12 [DeepSeek/deepseek-v4-pro] FDS-25: document deployment secrets and least-privilege IAM (docs/deployment.md)
 - 2026-07-12 [DeepSeek/deepseek-v4-pro] FDS-25: add Step Functions + Lambda deploy workflow (deploy-step-functions.yml)
