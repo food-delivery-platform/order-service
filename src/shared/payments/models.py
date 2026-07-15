@@ -26,9 +26,7 @@ class PaymentSession(BaseModel):
 
     order_id: str = Field(..., min_length=1, description="Internal order id")
     paypal_order_id: str = Field(..., min_length=1, description="PayPal-side order id")
-    approval_url: str = Field(
-        ..., min_length=1, description="PayPal approval/checkout URL"
-    )
+    approval_url: str = Field(default="", description="PayPal approval/checkout URL")
     amount: Decimal = Field(..., gt=0, description="Payment amount")
     currency: str = Field(
         ..., min_length=3, max_length=3, description="ISO 4217 currency code"
