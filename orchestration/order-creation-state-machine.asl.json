@@ -29,12 +29,25 @@
       "Type": "Task",
       "Resource": "arn:aws:lambda:...:function:create_order_step",
       "Comment": "FDS-24: snapshot items, compute totals, persist order with PENDING_PAYMENT",
-      "Next": "ProcessPayment"
+      "Next": "CreatePaymentSession"
     },
-    "ProcessPayment": {
-      "Type": "Pass",
-      "Comment": "Placeholder — process_payment Lambda not implemented yet (future FDS). Replace with a Task + Resource once the Payment Service lambda is deployed.",
-      "End": true
+    "CreatePaymentSession": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:...:function:create_payment_session",
+      "Comment": "FDS-27: create PayPal checkout order, persist PaymentSession, return approval_url",
+      "ResultPath": "$.payment",
+      "End": true,
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "PaymentSessionFailed"
+        }
+      ]
+    },
+    "PaymentSessionFailed": {
+      "Type": "Fail",
+      "Error": "PAYMENT_SESSION_FAILED",
+      "Cause": "CreatePaymentSession step failed — check CloudWatch logs"
     },
     "CartInvalidFail": {
       "Type": "Fail",
