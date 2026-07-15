@@ -262,6 +262,7 @@ FDS-25 snapshot (2026-07-12):
 
 ## Лента
 
+- 2026-07-15 [DeepSeek/deepseek-v4-pro] FDS-27: add create_payment_session lambda
 - 2026-07-15 [DeepSeek/deepseek-v4-pro] FDS-27: add payments repository (correlation + idempotency)
 - 2026-07-15 [DeepSeek/deepseek-v4-pro] FDS-27: add payment domain models + statuses
 - 2026-07-15 [DeepSeek/deepseek-v4-pro] FDS-27: add PayPal REST client wrapper + unit tests
