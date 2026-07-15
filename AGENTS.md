@@ -262,6 +262,7 @@ FDS-25 snapshot (2026-07-12):
 
 ## Лента
 
+- 2026-07-15 [DeepSeek/deepseek-v4-pro] FDS-27: add PayPal REST client wrapper + unit tests
 - 2026-07-13 [DeepSeek/deepseek-v4-pro] FDS-25: stub ProcessPayment as Pass placeholder (process_payment not yet implemented)
 - 2026-07-13 [DeepSeek/deepseek-v4-pro] FDS-25: drop unsupported $comment/$note root fields from ASL (SFN schema)
 - 2026-07-13 [DeepSeek/deepseek-v4-pro] FDS-25: wait for Lambda active/updated before patching config (fix ResourceConflictException)
