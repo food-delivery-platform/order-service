@@ -288,3 +288,4 @@ FDS-25 snapshot (2026-07-12):
 - 2026-07-05 [DeepSeek/deepseek-v4-pro] реализовал FDS-24: CreateOrderStep с персистенцией, snapshot-ами позиций и статусом PENDING_PAYMENT (FDS-24)
 - 2026-07-02 [DeepSeek/deepseek-v4-pro] создал AGENTS.md, обновил .gitignore (.ruff_cache), пофиксил order_repository, validate_order handler, mappers, menu_service_client, readme (FDS-21)
 - 2026-07-02 [Codebuff/minimax-m3] создал бриф .local/handoff-to-deepseek-2026-07-02.md, добавил паттерны в .gitignore
+- 2026-07-16 [DeepSeek/deepseek-v4-pro] FDS-27 R4: move tests into dedicated tests/ directory
