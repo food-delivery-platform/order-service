@@ -1,4 +1,4 @@
-"""Step Functions step — create a PayPal payment session (FDS-27 R2).
+"""Step Functions step — create a PayPal payment session (FDS-27 R3).
 
 This step runs after the order has been created with status PENDING_PAYMENT.
 It calls PayPal to create a checkout order, persists a PaymentSession row
@@ -18,8 +18,10 @@ Catch clause can handle it — no error is ever swallowed.
 from __future__ import annotations
 
 import logging
-from decimal import Decimal, InvalidOperation
 
+from pydantic import ValidationError
+
+from src.lambdas.create_payment_session.schema import CreatePaymentSessionInput
 from src.shared.errors.app_error import AppError
 from src.shared.payments import paypal_client
 from src.shared.payments import payment_repository
@@ -30,33 +32,16 @@ logger = logging.getLogger(__name__)
 
 def handler(event, context=None):
     # ------------------------------------------------------------------
-    # 1. Parse + validate input
+    # 1. Parse + validate input (Pydantic v2)
     # ------------------------------------------------------------------
-    order_id = event.get("order_id")
-    if not order_id:
-        raise AppError(400, "MISSING_ORDER_ID", "order_id is required")
-
-    raw_amount = event.get("amount")
-    if raw_amount is None:
-        raise AppError(400, "MISSING_AMOUNT", "amount is required")
-
     try:
-        amount = Decimal(str(raw_amount))
-    except (InvalidOperation, ValueError) as exc:
-        raise AppError(
-            400, "INVALID_AMOUNT", f"amount must be a valid number: {exc}"
-        ) from exc
+        data = CreatePaymentSessionInput.model_validate(event)
+    except ValidationError as exc:
+        raise AppError(400, "INVALID_INPUT", str(exc)) from exc
 
-    if amount <= 0:
-        raise AppError(400, "INVALID_AMOUNT", "amount must be greater than zero")
-
-    currency = event.get("currency")
-    if not currency or not isinstance(currency, str) or len(currency) != 3:
-        raise AppError(
-            400,
-            "INVALID_CURRENCY",
-            "currency must be a 3-letter ISO 4217 code",
-        )
+    order_id = data.order_id
+    amount = data.amount
+    currency = data.currency
 
     # ------------------------------------------------------------------
     # 2. Create PayPal checkout order
