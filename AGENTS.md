@@ -291,3 +291,4 @@ FDS-25 snapshot (2026-07-12):
 - 2026-07-16 [DeepSeek/deepseek-v4-pro] FDS-27 R4: move tests into dedicated tests/ directory
 - 2026-07-16 [DeepSeek/deepseek-v4-pro] FDS-27: R1–R4 complete (PayPal client encapsulation, DB schema alignment, Pydantic input validation, tests moved to tests/); pushed for review.
 - 2026-07-16 [DeepSeek/deepseek-v4-pro] FDS-27 R5: map CreatePaymentSession input in ASL (subtotal->amount) so SM#1 runs end-to-end
+- 2026-07-16 [DeepSeek/deepseek-v4-pro] FDS-27 R6: drop redundant amount before-validator (Pydantic v2 coerces Decimal natively)
