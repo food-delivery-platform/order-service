@@ -34,7 +34,12 @@
     "CreatePaymentSession": {
       "Type": "Task",
       "Resource": "arn:aws:lambda:...:function:create_payment_session",
-      "Comment": "FDS-27: create PayPal checkout order, persist PaymentSession, return approval_url",
+      "Comment": "FDS-27: create PayPal checkout order; input mapped from CreateOrderStep — amount maps from subtotal (delivery_fee=0 so total==subtotal today; switch to payable total once delivery_fee exists)",
+      "Parameters": {
+        "order_id.$": "$.order_id",
+        "amount.$": "$.subtotal",
+        "currency.$": "$.currency"
+      },
       "ResultPath": "$.payment",
       "End": true,
       "Catch": [
