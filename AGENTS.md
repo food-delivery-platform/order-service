@@ -267,6 +267,7 @@ FDS-25 snapshot (2026-07-12):
 - 2026-07-15 [DeepSeek/deepseek-v4-pro] FDS-27: add payments repository (correlation + idempotency)
 - 2026-07-15 [DeepSeek/deepseek-v4-pro] FDS-27: add payment domain models + statuses
 - 2026-07-15 [DeepSeek/deepseek-v4-pro] FDS-27: add PayPal REST client wrapper + unit tests
+- 2026-07-16 [DeepSeek/deepseek-v4-pro] FDS-27 R2: align payments to real DB schema + SQLAlchemy repository
 - 2026-07-16 [DeepSeek/deepseek-v4-pro] FDS-27: encapsulate PayPal auth token in PayPalClient (drop module globals)
 - 2026-07-13 [DeepSeek/deepseek-v4-pro] FDS-25: stub ProcessPayment as Pass placeholder (process_payment not yet implemented)
 - 2026-07-13 [DeepSeek/deepseek-v4-pro] FDS-25: drop unsupported $comment/$note root fields from ASL (SFN schema)

@@ -75,8 +75,7 @@ def _setup_http_mock(*response_pairs):
             if m == method and sub in url:
                 return resp
         raise AssertionError(
-            f"No mock registered for {method} {url}. "
-            f"Registered: {list(lookup.keys())}"
+            f"No mock registered for {method} {url}. Registered: {list(lookup.keys())}"
         )
 
     mock_instance = MagicMock()
@@ -94,20 +93,26 @@ def _setup_http_mock(*response_pairs):
 class TestAccessTokenCaching:
     def test_token_fetched_once_and_reused(self, paypal_env):
         """First call fetches a token; second call reuses the cached token."""
-        token_resp = _mock_response(200, {
-            "access_token": "tok-abc",
-            "expires_in": 3600,
-        })
-        order_resp = _mock_response(201, {
-            "id": "PP-O-1",
-            "status": "CREATED",
-            "links": [
-                {
-                    "rel": "approve",
-                    "href": "https://www.paypal.com/checkoutnow?token=PP-O-1",
-                }
-            ],
-        })
+        token_resp = _mock_response(
+            200,
+            {
+                "access_token": "tok-abc",
+                "expires_in": 3600,
+            },
+        )
+        order_resp = _mock_response(
+            201,
+            {
+                "id": "PP-O-1",
+                "status": "CREATED",
+                "links": [
+                    {
+                        "rel": "approve",
+                        "href": "https://www.paypal.com/checkoutnow?token=PP-O-1",
+                    }
+                ],
+            },
+        )
 
         mock_http = _setup_http_mock(
             ("POST", "/v1/oauth2/token", token_resp),
@@ -122,26 +127,25 @@ class TestAccessTokenCaching:
             r2 = client.create_order("ord-2", Decimal("29.90"), "ILS")
 
         assert r1["paypal_order_id"] == "PP-O-1"
-        assert r1["approval_url"] == (
-            "https://www.paypal.com/checkoutnow?token=PP-O-1"
-        )
+        assert r1["approval_url"] == ("https://www.paypal.com/checkoutnow?token=PP-O-1")
         assert r2["paypal_order_id"] == "PP-O-1"
 
         # Token endpoint called only once across both create_order calls
         assert mock_http.post.call_count == 3  # 1 token + 2 orders
         token_calls = [
-            c
-            for c in mock_http.post.call_args_list
-            if "/v1/oauth2/token" in c[0][0]
+            c for c in mock_http.post.call_args_list if "/v1/oauth2/token" in c[0][0]
         ]
         assert len(token_calls) == 1
 
     def test_token_not_refetched_when_not_expired(self, paypal_env):
         """Second call to _get_access_token returns the cached token."""
-        token_resp = _mock_response(200, {
-            "access_token": "tok-xyz",
-            "expires_in": 3600,
-        })
+        token_resp = _mock_response(
+            200,
+            {
+                "access_token": "tok-xyz",
+                "expires_in": 3600,
+            },
+        )
 
         mock_http = _setup_http_mock(
             ("POST", "/v1/oauth2/token", token_resp),
@@ -160,10 +164,13 @@ class TestAccessTokenCaching:
 
     def test_token_refetched_after_expiry(self, monkeypatch, paypal_env):
         """When the token is expired, a new one is fetched."""
-        token_resp = _mock_response(200, {
-            "access_token": "fresh-tok",
-            "expires_in": 3600,
-        })
+        token_resp = _mock_response(
+            200,
+            {
+                "access_token": "fresh-tok",
+                "expires_in": 3600,
+            },
+        )
 
         mock_http = _setup_http_mock(
             ("POST", "/v1/oauth2/token", token_resp),
@@ -196,16 +203,17 @@ class TestAccessTokenCaching:
             token_call_count += 1
             http_started.set()  # Signal: Thread A has the lock and is fetching
             release_http.wait(timeout=2)  # Block until released
-            return _mock_response(200, {
-                "access_token": "tok-concurrent",
-                "expires_in": 3600,
-            })
+            return _mock_response(
+                200,
+                {
+                    "access_token": "tok-concurrent",
+                    "expires_in": 3600,
+                },
+            )
 
         mock_client = MagicMock()
         mock_client.post.side_effect = lambda url, **kw: (
-            _slow_token_post()
-            if "/v1/oauth2/token" in url
-            else MagicMock()
+            _slow_token_post() if "/v1/oauth2/token" in url else MagicMock()
         )
 
         with patch("httpx.Client") as mock_client_cls:
@@ -251,32 +259,38 @@ class TestAccessTokenCaching:
 
 class TestCreateOrder:
     def test_happy_path(self, paypal_env):
-        token_resp = _mock_response(200, {
-            "access_token": "tok-1",
-            "expires_in": 3600,
-        })
-        order_resp = _mock_response(201, {
-            "id": "PAYPAL-ORDER-42",
-            "status": "CREATED",
-            "intent": "CAPTURE",
-            "links": [
-                {
-                    "href": "https://api.paypal.com/v2/checkout/orders/PAYPAL-ORDER-42",
-                    "rel": "self",
-                    "method": "GET",
-                },
-                {
-                    "href": "https://www.paypal.com/checkoutnow?token=PAYPAL-ORDER-42",
-                    "rel": "approve",
-                    "method": "GET",
-                },
-                {
-                    "href": "https://api.paypal.com/v2/checkout/orders/PAYPAL-ORDER-42/capture",
-                    "rel": "capture",
-                    "method": "POST",
-                },
-            ],
-        })
+        token_resp = _mock_response(
+            200,
+            {
+                "access_token": "tok-1",
+                "expires_in": 3600,
+            },
+        )
+        order_resp = _mock_response(
+            201,
+            {
+                "id": "PAYPAL-ORDER-42",
+                "status": "CREATED",
+                "intent": "CAPTURE",
+                "links": [
+                    {
+                        "href": "https://api.paypal.com/v2/checkout/orders/PAYPAL-ORDER-42",
+                        "rel": "self",
+                        "method": "GET",
+                    },
+                    {
+                        "href": "https://www.paypal.com/checkoutnow?token=PAYPAL-ORDER-42",
+                        "rel": "approve",
+                        "method": "GET",
+                    },
+                    {
+                        "href": "https://api.paypal.com/v2/checkout/orders/PAYPAL-ORDER-42/capture",
+                        "rel": "capture",
+                        "method": "POST",
+                    },
+                ],
+            },
+        )
 
         mock_http = _setup_http_mock(
             ("POST", "/v1/oauth2/token", token_resp),
@@ -286,9 +300,7 @@ class TestCreateOrder:
         with patch("httpx.Client") as mock_client_cls:
             mock_client_cls.return_value.__enter__.return_value = mock_http
             client = PayPalClient()
-            result = client.create_order(
-                "my-order", Decimal("99.99"), "ILS"
-            )
+            result = client.create_order("my-order", Decimal("99.99"), "ILS")
 
         assert result == {
             "paypal_order_id": "PAYPAL-ORDER-42",
@@ -299,21 +311,27 @@ class TestCreateOrder:
 
     def test_no_approval_link_returns_empty_approval_url(self, paypal_env):
         """If no link with rel=approve, approval_url is empty string."""
-        token_resp = _mock_response(200, {
-            "access_token": "tok-1",
-            "expires_in": 3600,
-        })
-        order_resp = _mock_response(201, {
-            "id": "PP-NO-APPROVE",
-            "status": "CREATED",
-            "links": [
-                {
-                    "href": "https://api.paypal.com/...",
-                    "rel": "self",
-                    "method": "GET",
-                },
-            ],
-        })
+        token_resp = _mock_response(
+            200,
+            {
+                "access_token": "tok-1",
+                "expires_in": 3600,
+            },
+        )
+        order_resp = _mock_response(
+            201,
+            {
+                "id": "PP-NO-APPROVE",
+                "status": "CREATED",
+                "links": [
+                    {
+                        "href": "https://api.paypal.com/...",
+                        "rel": "self",
+                        "method": "GET",
+                    },
+                ],
+            },
+        )
 
         mock_http = _setup_http_mock(
             ("POST", "/v1/oauth2/token", token_resp),
@@ -330,15 +348,21 @@ class TestCreateOrder:
 
     def test_decimal_amount_formatted_as_string(self, paypal_env):
         """Decimal values are serialized as strings in the payload."""
-        token_resp = _mock_response(200, {
-            "access_token": "tok-1",
-            "expires_in": 3600,
-        })
-        order_resp = _mock_response(201, {
-            "id": "PP-1",
-            "status": "CREATED",
-            "links": [],
-        })
+        token_resp = _mock_response(
+            200,
+            {
+                "access_token": "tok-1",
+                "expires_in": 3600,
+            },
+        )
+        order_resp = _mock_response(
+            201,
+            {
+                "id": "PP-1",
+                "status": "CREATED",
+                "links": [],
+            },
+        )
 
         mock_http = _setup_http_mock(
             ("POST", "/v1/oauth2/token", token_resp),
@@ -352,9 +376,7 @@ class TestCreateOrder:
 
         # Check that the order creation POST body had the correct amount format
         order_call = [
-            c
-            for c in mock_http.post.call_args_list
-            if "/v2/checkout/orders" in c[0][0]
+            c for c in mock_http.post.call_args_list if "/v2/checkout/orders" in c[0][0]
         ][0]
         payload = order_call[1]["json"]
         assert payload["purchase_units"][0]["amount"]["value"] == "123.45"
@@ -369,26 +391,32 @@ class TestCreateOrder:
 
 class TestGetOrder:
     def test_normalizes_response(self, paypal_env):
-        token_resp = _mock_response(200, {
-            "access_token": "tok-2",
-            "expires_in": 3600,
-        })
-        order_resp = _mock_response(200, {
-            "id": "PP-ORDER-99",
-            "status": "APPROVED",
-            "intent": "CAPTURE",
-            "purchase_units": [
-                {
-                    "reference_id": "my-order",
-                    "amount": {
-                        "currency_code": "ILS",
-                        "value": "150.00",
-                    },
-                }
-            ],
-            "payer": {"email_address": "buyer@example.com"},
-            "create_time": "2026-07-15T10:00:00Z",
-        })
+        token_resp = _mock_response(
+            200,
+            {
+                "access_token": "tok-2",
+                "expires_in": 3600,
+            },
+        )
+        order_resp = _mock_response(
+            200,
+            {
+                "id": "PP-ORDER-99",
+                "status": "APPROVED",
+                "intent": "CAPTURE",
+                "purchase_units": [
+                    {
+                        "reference_id": "my-order",
+                        "amount": {
+                            "currency_code": "ILS",
+                            "value": "150.00",
+                        },
+                    }
+                ],
+                "payer": {"email_address": "buyer@example.com"},
+                "create_time": "2026-07-15T10:00:00Z",
+            },
+        )
 
         mock_http = _setup_http_mock(
             ("POST", "/v1/oauth2/token", token_resp),
@@ -408,15 +436,21 @@ class TestGetOrder:
 
     def test_missing_purchase_units(self, paypal_env):
         """Empty purchase_units → empty amount/currency strings."""
-        token_resp = _mock_response(200, {
-            "access_token": "tok-3",
-            "expires_in": 3600,
-        })
-        order_resp = _mock_response(200, {
-            "id": "PP-EMPTY",
-            "status": "CREATED",
-            "purchase_units": [],
-        })
+        token_resp = _mock_response(
+            200,
+            {
+                "access_token": "tok-3",
+                "expires_in": 3600,
+            },
+        )
+        order_resp = _mock_response(
+            200,
+            {
+                "id": "PP-EMPTY",
+                "status": "CREATED",
+                "purchase_units": [],
+            },
+        )
 
         mock_http = _setup_http_mock(
             ("POST", "/v1/oauth2/token", token_resp),
@@ -442,24 +476,27 @@ class TestGetOrder:
 
 class TestVerifyWebhookSignature:
     _HEADERS = {
-        "paypal-cert-url": (
-            "https://api.paypal.com/v1/notifications/certs/CERT-360"
-        ),
+        "paypal-cert-url": ("https://api.paypal.com/v1/notifications/certs/CERT-360"),
         "paypal-transmission-id": "txn-123",
         "paypal-transmission-time": "2026-07-15T10:00:00Z",
         "paypal-transmission-sig": "sig-value",
         "paypal-auth-algo": "SHA256withRSA",
     }
-    _BODY = json.dumps({
-        "event_type": "CHECKOUT.ORDER.APPROVED",
-        "resource": {"id": "PP-1"},
-    })
+    _BODY = json.dumps(
+        {
+            "event_type": "CHECKOUT.ORDER.APPROVED",
+            "resource": {"id": "PP-1"},
+        }
+    )
 
     def test_success_returns_true(self, paypal_env):
-        token_resp = _mock_response(200, {
-            "access_token": "tok-4",
-            "expires_in": 3600,
-        })
+        token_resp = _mock_response(
+            200,
+            {
+                "access_token": "tok-4",
+                "expires_in": 3600,
+            },
+        )
         verify_resp = _mock_response(200, {"verification_status": "SUCCESS"})
 
         mock_http = _setup_http_mock(
@@ -474,17 +511,18 @@ class TestVerifyWebhookSignature:
         with patch("httpx.Client") as mock_client_cls:
             mock_client_cls.return_value.__enter__.return_value = mock_http
             client = PayPalClient()
-            result = client.verify_webhook_signature(
-                self._HEADERS, self._BODY
-            )
+            result = client.verify_webhook_signature(self._HEADERS, self._BODY)
 
         assert result is True
 
     def test_failure_returns_false(self, paypal_env):
-        token_resp = _mock_response(200, {
-            "access_token": "tok-5",
-            "expires_in": 3600,
-        })
+        token_resp = _mock_response(
+            200,
+            {
+                "access_token": "tok-5",
+                "expires_in": 3600,
+            },
+        )
         verify_resp = _mock_response(200, {"verification_status": "FAILURE"})
 
         mock_http = _setup_http_mock(
@@ -499,19 +537,18 @@ class TestVerifyWebhookSignature:
         with patch("httpx.Client") as mock_client_cls:
             mock_client_cls.return_value.__enter__.return_value = mock_http
             client = PayPalClient()
-            result = client.verify_webhook_signature(
-                self._HEADERS, self._BODY
-            )
+            result = client.verify_webhook_signature(self._HEADERS, self._BODY)
 
         assert result is False
 
-    def test_verification_request_non_200_raises_paypal_error(
-        self, paypal_env
-    ):
-        token_resp = _mock_response(200, {
-            "access_token": "tok-6",
-            "expires_in": 3600,
-        })
+    def test_verification_request_non_200_raises_paypal_error(self, paypal_env):
+        token_resp = _mock_response(
+            200,
+            {
+                "access_token": "tok-6",
+                "expires_in": 3600,
+            },
+        )
         verify_resp = _mock_response(500, {"error": "internal_error"})
 
         mock_http = _setup_http_mock(
@@ -527,18 +564,14 @@ class TestVerifyWebhookSignature:
             mock_client_cls.return_value.__enter__.return_value = mock_http
             client = PayPalClient()
             with pytest.raises(PayPalError) as exc_info:
-                client.verify_webhook_signature(
-                    self._HEADERS, self._BODY
-                )
+                client.verify_webhook_signature(self._HEADERS, self._BODY)
 
         assert exc_info.value.status_code == 500
 
     def test_missing_webhook_id_returns_false(self, paypal_env, monkeypatch):
         monkeypatch.delenv("PAYPAL_WEBHOOK_ID", raising=False)
         client = PayPalClient()
-        result = client.verify_webhook_signature(
-            self._HEADERS, self._BODY
-        )
+        result = client.verify_webhook_signature(self._HEADERS, self._BODY)
         assert result is False
 
 
@@ -573,14 +606,20 @@ class TestPayPalError:
 
 class TestNon2xxRaisesPayPalError:
     def test_create_order_400_raises(self, paypal_env):
-        token_resp = _mock_response(200, {
-            "access_token": "tok-err",
-            "expires_in": 3600,
-        })
-        error_resp = _mock_response(400, {
-            "name": "INVALID_REQUEST",
-            "message": "Currency not supported",
-        })
+        token_resp = _mock_response(
+            200,
+            {
+                "access_token": "tok-err",
+                "expires_in": 3600,
+            },
+        )
+        error_resp = _mock_response(
+            400,
+            {
+                "name": "INVALID_REQUEST",
+                "message": "Currency not supported",
+            },
+        )
 
         mock_http = _setup_http_mock(
             ("POST", "/v1/oauth2/token", token_resp),
@@ -597,14 +636,20 @@ class TestNon2xxRaisesPayPalError:
         assert "Failed to create PayPal order" in exc_info.value.message
 
     def test_get_order_404_raises(self, paypal_env):
-        token_resp = _mock_response(200, {
-            "access_token": "tok-err",
-            "expires_in": 3600,
-        })
-        error_resp = _mock_response(404, {
-            "name": "RESOURCE_NOT_FOUND",
-            "message": "Order not found",
-        })
+        token_resp = _mock_response(
+            200,
+            {
+                "access_token": "tok-err",
+                "expires_in": 3600,
+            },
+        )
+        error_resp = _mock_response(
+            404,
+            {
+                "name": "RESOURCE_NOT_FOUND",
+                "message": "Order not found",
+            },
+        )
 
         mock_http = _setup_http_mock(
             ("POST", "/v1/oauth2/token", token_resp),

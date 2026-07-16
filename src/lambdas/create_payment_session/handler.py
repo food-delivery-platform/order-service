@@ -1,4 +1,4 @@
-"""Step Functions step — create a PayPal payment session (FDS-27).
+"""Step Functions step — create a PayPal payment session (FDS-27 R2).
 
 This step runs after the order has been created with status PENDING_PAYMENT.
 It calls PayPal to create a checkout order, persists a PaymentSession row
@@ -9,7 +9,7 @@ Input:
     { "order_id": str, "amount": <number>, "currency": str }
 
 Output:
-    { "order_id", "paypal_order_id", "approval_url" }
+    { "order_id", "provider_ref", "approval_url" }
 
 On any failure the exception is logged and re-raised so the state machine's
 Catch clause can handle it — no error is ever swallowed.
@@ -81,7 +81,7 @@ def handler(event, context=None):
             f"Unexpected error calling PayPal: {exc}",
         ) from exc
 
-    paypal_order_id = paypal_result["paypal_order_id"]
+    provider_ref = paypal_result["paypal_order_id"]
     approval_url = paypal_result["approval_url"]
 
     # ------------------------------------------------------------------
@@ -90,17 +90,18 @@ def handler(event, context=None):
     try:
         payment_repository.create_payment(
             order_id=order_id,
-            paypal_order_id=paypal_order_id,
+            provider="paypal",
+            provider_ref=provider_ref,
             amount=amount,
             currency=currency,
-            status=PaymentStatus.CREATED,
+            status=PaymentStatus.PENDING,
             approval_url=approval_url,
         )
     except Exception as exc:
         logger.exception(
-            "create_payment failed for order_id=%s paypal_order_id=%s",
+            "create_payment failed for order_id=%s provider_ref=%s",
             order_id,
-            paypal_order_id,
+            provider_ref,
         )
         raise AppError(
             500,
@@ -113,6 +114,6 @@ def handler(event, context=None):
     # ------------------------------------------------------------------
     return {
         "order_id": order_id,
-        "paypal_order_id": paypal_order_id,
+        "provider_ref": provider_ref,
         "approval_url": approval_url,
     }

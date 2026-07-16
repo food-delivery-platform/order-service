@@ -1,4 +1,4 @@
-"""Hermetic unit tests for create_payment_session lambda (FDS-27).
+"""Hermetic unit tests for create_payment_session lambda (FDS-27 R2).
 
 All external dependencies (paypal_client, payment_repository) are mocked.
 No network calls.
@@ -42,7 +42,7 @@ def test_happy_path(mock_create_order, mock_create_payment):
 
     assert result == {
         "order_id": "ord-abc123",
-        "paypal_order_id": "PAYPAL-TEST-001",
+        "provider_ref": "PAYPAL-TEST-001",
         "approval_url": _PAYPAL_OK["approval_url"],
     }
 
@@ -54,10 +54,11 @@ def test_happy_path(mock_create_order, mock_create_payment):
 
     mock_create_payment.assert_called_once_with(
         order_id="ord-abc123",
-        paypal_order_id="PAYPAL-TEST-001",
+        provider="paypal",
+        provider_ref="PAYPAL-TEST-001",
         amount=Decimal("78.50"),
         currency="ILS",
-        status=PaymentStatus.CREATED,
+        status=PaymentStatus.PENDING,
         approval_url=_PAYPAL_OK["approval_url"],
     )
 

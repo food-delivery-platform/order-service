@@ -1,4 +1,4 @@
-"""Hermetic unit tests for payment domain models (FDS-27)."""
+"""Hermetic unit tests for payment domain models (FDS-27 R2)."""
 
 from __future__ import annotations
 
@@ -40,19 +40,29 @@ def test_existing_order_statuses_are_untouched():
 
 
 # ---------------------------------------------------------------------------
-# PaymentStatus enum
+# PaymentStatus enum — new StrEnum members (DB schema match)
 # ---------------------------------------------------------------------------
 
 
 def test_payment_status_values():
-    assert PaymentStatus.CREATED.value == "CREATED"
-    assert PaymentStatus.PAID.value == "PAID"
+    assert PaymentStatus.PENDING.value == "PENDING"
+    assert PaymentStatus.CUSTOMER_ACTION_REQUIRED.value == "CUSTOMER_ACTION_REQUIRED"
+    assert PaymentStatus.SUCCEEDED.value == "SUCCEEDED"
     assert PaymentStatus.FAILED.value == "FAILED"
-    assert PaymentStatus.CANCELLED.value == "CANCELLED"
+    assert PaymentStatus.REFUNDED.value == "REFUNDED"
 
 
 def test_payment_status_is_str_enum():
-    assert isinstance(PaymentStatus.CREATED, str)
+    """PaymentStatus is an StrEnum (Python 3.11+) — members ARE strings."""
+    assert isinstance(PaymentStatus.PENDING, str)
+    assert PaymentStatus.PENDING == "PENDING"
+
+
+def test_payment_status_only_has_five_members():
+    """No legacy CREATED/PAID/CANCELLED values remain."""
+    assert not hasattr(PaymentStatus, "CREATED")
+    assert not hasattr(PaymentStatus, "PAID")
+    assert not hasattr(PaymentStatus, "CANCELLED")
 
 
 # ---------------------------------------------------------------------------
@@ -62,31 +72,39 @@ def test_payment_status_is_str_enum():
 
 _VALID_SESSION = {
     "order_id": "ord-abc123",
-    "paypal_order_id": "PAYPAL-TEST-001",
+    "provider": "paypal",
+    "provider_ref": "PAYPAL-TEST-001",
     "approval_url": "https://www.sandbox.paypal.com/checkout/approve",
     "amount": Decimal("78.50"),
     "currency": "ILS",
-    "status": "CREATED",
+    "status": "PENDING",
 }
 
 
 def test_session_valid_payload():
     s = PaymentSession(**_VALID_SESSION)
     assert s.order_id == "ord-abc123"
-    assert s.paypal_order_id == "PAYPAL-TEST-001"
+    assert s.provider == "paypal"
+    assert s.provider_ref == "PAYPAL-TEST-001"
     assert s.amount == Decimal("78.50")
     assert s.currency == "ILS"
-    assert s.status == PaymentStatus.CREATED
+    assert s.status == PaymentStatus.PENDING
 
 
-def test_session_default_status_is_created():
+def test_session_default_status_is_pending():
     payload = {k: v for k, v in _VALID_SESSION.items() if k != "status"}
     s = PaymentSession(**payload)
-    assert s.status == PaymentStatus.CREATED
+    assert s.status == PaymentStatus.PENDING
+
+
+def test_session_default_provider_is_paypal():
+    payload = {k: v for k, v in _VALID_SESSION.items() if k != "provider"}
+    s = PaymentSession(**payload)
+    assert s.provider == "paypal"
 
 
 def test_session_accepts_other_statuses():
-    for st in ("PAID", "FAILED", "CANCELLED"):
+    for st in ("CUSTOMER_ACTION_REQUIRED", "SUCCEEDED", "FAILED", "REFUNDED"):
         payload = {**_VALID_SESSION, "status": st}
         s = PaymentSession(**payload)
         assert s.status.value == st
@@ -103,8 +121,8 @@ def test_session_missing_order_id_rejected():
         PaymentSession(**bad)
 
 
-def test_session_missing_paypal_order_id_rejected():
-    bad = {k: v for k, v in _VALID_SESSION.items() if k != "paypal_order_id"}
+def test_session_missing_provider_ref_rejected():
+    bad = {k: v for k, v in _VALID_SESSION.items() if k != "provider_ref"}
     with pytest.raises(ValidationError):
         PaymentSession(**bad)
 
@@ -151,7 +169,8 @@ def test_session_invalid_status_rejected():
 
 
 _VALID_VERIFICATION = {
-    "paypal_order_id": "PAYPAL-TEST-002",
+    "provider": "paypal",
+    "provider_ref": "PAYPAL-TEST-002",
     "status": "COMPLETED",
     "amount": Decimal("25.00"),
     "currency": "USD",
@@ -160,14 +179,21 @@ _VALID_VERIFICATION = {
 
 def test_verification_valid_payload():
     v = PaymentVerification(**_VALID_VERIFICATION)
-    assert v.paypal_order_id == "PAYPAL-TEST-002"
+    assert v.provider == "paypal"
+    assert v.provider_ref == "PAYPAL-TEST-002"
     assert v.status == "COMPLETED"
     assert v.amount == Decimal("25.00")
     assert v.currency == "USD"
 
 
+def test_verification_default_provider_is_paypal():
+    payload = {k: v for k, v in _VALID_VERIFICATION.items() if k != "provider"}
+    v = PaymentVerification(**payload)
+    assert v.provider == "paypal"
+
+
 def test_verification_status_is_freeform_string():
-    """status is a PayPal-side value (e.g. APPROVED, COMPLETED) — not an enum."""
+    """status is a provider-side value (e.g. APPROVED, COMPLETED) — not an enum."""
     v = PaymentVerification(**_VALID_VERIFICATION)
     assert isinstance(v.status, str)
 
@@ -177,8 +203,8 @@ def test_verification_status_is_freeform_string():
 # ---------------------------------------------------------------------------
 
 
-def test_verification_missing_paypal_order_id_rejected():
-    bad = {k: v for k, v in _VALID_VERIFICATION.items() if k != "paypal_order_id"}
+def test_verification_missing_provider_ref_rejected():
+    bad = {k: v for k, v in _VALID_VERIFICATION.items() if k != "provider_ref"}
     with pytest.raises(ValidationError):
         PaymentVerification(**bad)
 
