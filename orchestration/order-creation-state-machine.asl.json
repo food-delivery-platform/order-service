@@ -1,6 +1,4 @@
 {
-  "$comment": "Step Functions state machine for Order Creation (FDS-24, FDS-25).",
-  "$note": "This ASL is a placeholder — the actual definition lives in AWS (console or CloudFormation). Use this as a reference for the intended flow.",
   "Comment": "Order Creation State Machine — validate cart, resolve address, create order, process payment",
   "StartAt": "ValidateCart",
   "States": {
@@ -34,9 +32,8 @@
       "Next": "ProcessPayment"
     },
     "ProcessPayment": {
-      "Type": "Task",
-      "Resource": "arn:aws:lambda:...:function:process_payment",
-      "Comment": "Future task — triggers Payment Service",
+      "Type": "Pass",
+      "Comment": "Placeholder — process_payment Lambda not implemented yet (future FDS). Replace with a Task + Resource once the Payment Service lambda is deployed.",
       "End": true
     },
     "CartInvalidFail": {

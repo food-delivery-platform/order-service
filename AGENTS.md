@@ -235,8 +235,43 @@ Supabase (Postgres), события — SNS/SQS, оркестрация — Step
 
 ---
 
+## 2026-07-12 — DeepSeek (deepseek-v4-pro) — FDS-25 CI/CD deployment
+
+FDS-25 snapshot (2026-07-12):
+- **Secrets Manager runtime loader** (`src/shared/config/secrets.py`) — lazy-init,
+  one-call-per-warm-Lambda caching with empty-dict local-dev fallback.
+- **DB creds hydrated from Secrets Manager** with env fallback (`env.py`
+  `_hydrate`). When `SERVICE_SECRET_ARN` is unset, behaviour is identical to
+  plain env (local dev unchanged).
+- **Lambda packaging script** (`scripts/package_lambdas.py`) — zips the `src/`
+  tree per deployable Lambda. `DEPLOYABLE = ["validate_order",
+  "resolve_delivery_address", "create_order_step"]`.
+- **Deploy workflow** (`.github/workflows/deploy-step-functions.yml`):
+  validate ASL → package → deploy/create lambdas → set `SERVICE_SECRET_ARN`
+  (ARN only) → render ASL with real Lambda ARNs (jq `walk`) → create/update
+  state machine → summary in `$GITHUB_STEP_SUMMARY`.
+- **Deployment docs + least-privilege IAM** (`docs/deployment.md`): required
+  GitHub secrets/variables, IAM policies for deployer and Lambda execution role.
+- **Secret VALUE never** enters env vars, logs, CI output, or committed files —
+  only the ARN is passed.
+- **SERVICE_SECRET_ARN** is stored as a GitHub repository **Secret** (not Variable)
+  for consistency with all other AWS values in the deploy workflow.
+  `docs/deployment.md` reflects this.
+
+---
+
 ## Лента
 
+- 2026-07-13 [DeepSeek/deepseek-v4-pro] FDS-25: stub ProcessPayment as Pass placeholder (process_payment not yet implemented)
+- 2026-07-13 [DeepSeek/deepseek-v4-pro] FDS-25: drop unsupported $comment/$note root fields from ASL (SFN schema)
+- 2026-07-13 [DeepSeek/deepseek-v4-pro] FDS-25: wait for Lambda active/updated before patching config (fix ResourceConflictException)
+- 2026-07-13 [DeepSeek/deepseek-v4-pro] FDS-25: switch CI to OIDC (AWS_ROLE_ARN), add deploy branch for pre-merge test
+- 2026-07-13 [DeepSeek/deepseek-v4-pro] FDS-25: fix SERVICE_SECRET_ARN reference — read from GitHub Secrets (not vars) for consistency with other AWS values
+- 2026-07-12 [DeepSeek/deepseek-v4-pro] FDS-25: hydrate DB credentials from Secrets Manager with env fallback (env.py _hydrate + tests)
+- 2026-07-12 [DeepSeek/deepseek-v4-pro] FDS-25: document deployment secrets and least-privilege IAM (docs/deployment.md)
+- 2026-07-12 [DeepSeek/deepseek-v4-pro] FDS-25: add Step Functions + Lambda deploy workflow (deploy-step-functions.yml)
+- 2026-07-12 [DeepSeek/deepseek-v4-pro] FDS-25: add lambda packaging step (scripts/package_lambdas.py)
+- 2026-07-12 [DeepSeek/deepseek-v4-pro] FDS-25: add Secrets Manager runtime loader (secrets.py + tests)
 - 2026-07-08 [DeepSeek/deepseek-v4-pro] FDS-24: валидация входа create_order_step через pydantic (CreateOrderStepEvent); создана папка tests/ (fixtures/events + unit), events перенесены
 - 2026-07-08 [DeepSeek/deepseek-v4-pro] FDS-24: persistence выровнен по реальной схеме (orders.id/venue_id/delivery_address_id, order_items.menu_item_name, order_status_history); RPC пишет 3 таблицы атомарно
 - 2026-07-08 [DeepSeek/deepseek-v4-pro] FDS-25: стабы адресов заменены на реальную таблицу `addresses` в Supabase — модель `CustomerAddress`, репозиторий `address_repository`

@@ -1,9 +1,12 @@
 """Centralized access to environment variables (12-factor config).
 
 Names match the "Required Environment Variables" list in FDS-15.
+Credentials are hydrated from Secrets Manager first, plain env second.
 """
 
 import os
+
+from src.shared.config.secrets import get_service_secret
 
 
 def get(name: str, default: str | None = None, required: bool = False) -> str | None:
@@ -13,10 +16,23 @@ def get(name: str, default: str | None = None, required: bool = False) -> str | 
     return value
 
 
+def _hydrate(name: str, default: str | None = None) -> str | None:
+    """Return secret value for *name* if available, otherwise env value.
+
+    When SERVICE_SECRET_ARN is unset the secret is empty dict so behaviour
+    falls back to plain env — local dev keeps working unchanged.
+    """
+    secret = get_service_secret()
+    value = secret.get(name)
+    if value is not None:
+        return value
+    return os.environ.get(name, default)
+
+
 AWS_REGION = get("AWS_REGION", "eu-west-1")
 
-SUPABASE_URL = get("SUPABASE_URL")
-SUPABASE_SERVICE_ROLE_KEY = get("SUPABASE_SERVICE_ROLE_KEY")
+SUPABASE_URL = _hydrate("SUPABASE_URL")
+SUPABASE_SERVICE_ROLE_KEY = _hydrate("SUPABASE_SERVICE_ROLE_KEY")
 
 ORDER_STATUS_TABLE_NAME = get("ORDER_STATUS_TABLE_NAME", "order-status-live")
 

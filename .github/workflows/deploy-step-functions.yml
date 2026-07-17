@@ -1,0 +1,185 @@
+name: Deploy Step Functions
+
+on:
+  push:
+    branches: [main, deploy]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Validate ASL
+        run: |
+          set -euo pipefail
+          python -c "import json; json.load(open('orchestration/order-creation-state-machine.asl.json'))"
+          echo "ASL is valid JSON"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Package Lambdas
+        run: |
+          set -euo pipefail
+          python scripts/package_lambdas.py
+
+      - name: Deploy Lambdas
+        id: deploy-lambdas
+        run: |
+          set -euo pipefail
+
+          DEPLOYABLE=("validate_order" "resolve_delivery_address" "create_order_step")
+          ROLE_ARN="${{ secrets.LAMBDA_EXECUTION_ROLE_ARN }}"
+
+          # Init summary file for created-vs-updated tracking
+          SUMMARY_FILE="deploy-summary.txt"
+
+          for func in "${DEPLOYABLE[@]}"; do
+            echo "::group::Deploying ${func}"
+
+            ZIP_FILE="build/${func}.zip"
+
+            if aws lambda get-function --function-name "${func}" --no-cli-pager &>/dev/null; then
+              echo "  Updating existing function: ${func}"
+              aws lambda update-function-code \
+                --function-name "${func}" \
+                --zip-file "fileb://${ZIP_FILE}" \
+                --no-cli-pager
+              ACTION="updated"
+            else
+              echo "  Creating new function: ${func}"
+              aws lambda create-function \
+                --function-name "${func}" \
+                --runtime python3.12 \
+                --timeout 30 \
+                --memory-size 256 \
+                --role "${ROLE_ARN}" \
+                --handler "src.lambdas.${func}.handler.handler" \
+                --zip-file "fileb://${ZIP_FILE}" \
+                --no-cli-pager
+              ACTION="created"
+            fi
+
+            # Merge SERVICE_SECRET_ARN into existing env vars.
+            # get-function-configuration returns "null" when there are no env vars;
+            # coerce that to {} before merging.
+            EXISTING_VARS=$(aws lambda get-function-configuration \
+              --function-name "${func}" \
+              --query 'Environment.Variables' \
+              --output json \
+              --no-cli-pager 2>/dev/null || echo "{}")
+            MERGED_VARS=$(echo "${EXISTING_VARS}" | jq -c \
+              --arg arn "${{ secrets.SERVICE_SECRET_ARN }}" \
+              '(. // {}) + {SERVICE_SECRET_ARN: $arn}')
+
+            aws lambda update-function-configuration \
+              --function-name "${func}" \
+              --environment "{\"Variables\": ${MERGED_VARS}}" \
+              --no-cli-pager
+
+            echo "${func}: ${ACTION}" >> "${SUMMARY_FILE}"
+            echo "::endgroup::"
+          done
+
+          echo "summary_file=${SUMMARY_FILE}" >> "${GITHUB_OUTPUT}"
+
+      - name: Render ASL and deploy State Machine
+        id: deploy-sm
+        run: |
+          set -euo pipefail
+
+          # Resolve actual Lambda ARNs from deployed functions
+          VALIDATE_ARN=$(aws lambda get-function --function-name validate_order \
+            --query 'Configuration.FunctionArn' --output text --no-cli-pager)
+          RESOLVE_ARN=$(aws lambda get-function --function-name resolve_delivery_address \
+            --query 'Configuration.FunctionArn' --output text --no-cli-pager)
+          CREATE_ARN=$(aws lambda get-function --function-name create_order_step \
+            --query 'Configuration.FunctionArn' --output text --no-cli-pager)
+
+          echo "Resolved Lambda ARNs:"
+          echo "  validate_order:            ${VALIDATE_ARN}"
+          echo "  resolve_delivery_address:   ${RESOLVE_ARN}"
+          echo "  create_order_step:          ${CREATE_ARN}"
+
+          # Substitute placeholder ARNs with real ARNs via jq walk
+          jq --arg validate_arn "${VALIDATE_ARN}" \
+             --arg resolve_arn "${RESOLVE_ARN}" \
+             --arg create_arn "${CREATE_ARN}" \
+             'walk(
+               if type == "string" and contains("function:validate_order") then $validate_arn
+               elif type == "string" and contains("function:resolve_delivery_address") then $resolve_arn
+               elif type == "string" and contains("function:create_order_step") then $create_arn
+               else . end
+             )' \
+             orchestration/order-creation-state-machine.asl.json > rendered.asl.json
+
+          echo "Rendered ASL written to rendered.asl.json"
+
+          SM_NAME="${{ secrets.AWS_STEP_FUNCTIONS_STATE_MACHINE_NAME }}"
+
+          # Look up existing state machine by name
+          SM_ARN=$(aws stepfunctions list-state-machines \
+            --query "stateMachines[?name=='${SM_NAME}'].stateMachineArn" \
+            --output text --no-cli-pager)
+
+          if [ -n "${SM_ARN}" ] && [ "${SM_ARN}" != "None" ]; then
+            echo "Updating existing state machine: ${SM_NAME} (${SM_ARN})"
+            aws stepfunctions update-state-machine \
+              --state-machine-arn "${SM_ARN}" \
+              --definition "$(cat rendered.asl.json)" \
+              --role-arn "${{ secrets.AWS_STEP_FUNCTIONS_ROLE_ARN }}" \
+              --no-cli-pager
+            SM_ACTION="updated"
+          else
+            echo "Creating new state machine: ${SM_NAME}"
+            aws stepfunctions create-state-machine \
+              --name "${SM_NAME}" \
+              --definition "$(cat rendered.asl.json)" \
+              --role-arn "${{ secrets.AWS_STEP_FUNCTIONS_ROLE_ARN }}" \
+              --no-cli-pager
+            SM_ACTION="created"
+          fi
+
+          echo "sm_action=${SM_ACTION}" >> "${GITHUB_OUTPUT}"
+
+      - name: Deployment Summary
+        if: always()
+        run: |
+          set -euo pipefail
+
+          SM_NAME="${{ secrets.AWS_STEP_FUNCTIONS_STATE_MACHINE_NAME }}"
+          REGION="${{ secrets.AWS_REGION }}"
+          SUMMARY_FILE="${{ steps.deploy-lambdas.outputs.summary_file }}"
+          SM_ACTION="${{ steps.deploy-sm.outputs.sm_action }}"
+
+          {
+            echo "## 🚀 Step Functions Deployment Summary"
+            echo ""
+            echo "| Resource | Action |"
+            echo "|----------|--------|"
+            echo "| State Machine \`${SM_NAME}\` | ${SM_ACTION:-deployed} |"
+            echo "| Region | \`${REGION}\` |"
+            if [ -f "${SUMMARY_FILE:-}" ]; then
+              while IFS=: read -r name action; do
+                echo "| Lambda \`${name}\` | ${action} |"
+              done < "${SUMMARY_FILE}"
+            else
+              echo "| Lambda \`validate_order\` | deployed |"
+              echo "| Lambda \`resolve_delivery_address\` | deployed |"
+              echo "| Lambda \`create_order_step\` | deployed |"
+            fi
+          } >> "${GITHUB_STEP_SUMMARY}"
