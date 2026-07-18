@@ -42,7 +42,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          DEPLOYABLE=("validate_order" "resolve_delivery_address" "create_order_step")
+          DEPLOYABLE=("validate_order" "resolve_delivery_address" "create_order_step" "create_payment_session")
           ROLE_ARN="${{ secrets.LAMBDA_EXECUTION_ROLE_ARN }}"
 
           # Init summary file for created-vs-updated tracking
@@ -109,19 +109,24 @@ jobs:
             --query 'Configuration.FunctionArn' --output text --no-cli-pager)
           CREATE_ARN=$(aws lambda get-function --function-name create_order_step \
             --query 'Configuration.FunctionArn' --output text --no-cli-pager)
+          PAYMENT_SESSION_ARN=$(aws lambda get-function --function-name create_payment_session \
+            --query 'Configuration.FunctionArn' --output text --no-cli-pager)
 
           echo "Resolved Lambda ARNs:"
-          echo "  validate_order:            ${VALIDATE_ARN}"
+          echo "  validate_order:             ${VALIDATE_ARN}"
           echo "  resolve_delivery_address:   ${RESOLVE_ARN}"
           echo "  create_order_step:          ${CREATE_ARN}"
+          echo "  create_payment_session:     ${PAYMENT_SESSION_ARN}"
 
           # Substitute placeholder ARNs with real ARNs via jq walk
           jq --arg validate_arn "${VALIDATE_ARN}" \
              --arg resolve_arn "${RESOLVE_ARN}" \
              --arg create_arn "${CREATE_ARN}" \
+             --arg payment_session_arn "${PAYMENT_SESSION_ARN}" \
              'walk(
                if type == "string" and contains("function:validate_order") then $validate_arn
                elif type == "string" and contains("function:resolve_delivery_address") then $resolve_arn
+               elif type == "string" and contains("function:create_payment_session") then $payment_session_arn
                elif type == "string" and contains("function:create_order_step") then $create_arn
                else . end
              )' \
