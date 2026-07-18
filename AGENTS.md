@@ -260,6 +260,18 @@ FDS-25 snapshot (2026-07-12):
 
 ---
 
+## 2026-07-18 — DeepSeek (deepseek-v4-pro) — FDS-27 P2-C6 paypal_webhook lambda
+
+- **Цель:** создать Lambda для приёма и верификации PayPal webhook-уведомлений.
+- **Изменено:**
+  - `src/lambdas/paypal_webhook/schema.py` (новый) — Pydantic v2 модели WebhookBody / WebhookResource.
+  - `src/lambdas/paypal_webhook/handler.py` (новый) — Lambda-хендлер: извлечение PayPal-заголовков из API Gateway event, верификация подписи через существующий PayPalClient.verify_webhook_signature, парсинг и валидация тела, нормализация.
+  - `tests/test_paypal_webhook.py` (новый) — 7 тестов: валидная подпись, невалидная подпись, malformed body (missing event_type, missing resource, not JSON), multiValueHeaders, missing body.
+- **Открыто:** —
+- **Дальше:** добавить paypal_webhook в package_lambdas.py DEPLOYABLE; создать второй state machine для обработки webhook-событий.
+
+---
+
 ## Лента
 
 - 2026-07-15 [DeepSeek/deepseek-v4-pro] FDS-27: SM#1 creates PayPal session, returns approval URL
@@ -292,3 +304,4 @@ FDS-25 snapshot (2026-07-12):
 - 2026-07-16 [DeepSeek/deepseek-v4-pro] FDS-27: R1–R4 complete (PayPal client encapsulation, DB schema alignment, Pydantic input validation, tests moved to tests/); pushed for review.
 - 2026-07-16 [DeepSeek/deepseek-v4-pro] FDS-27 R5: map CreatePaymentSession input in ASL (subtotal->amount) so SM#1 runs end-to-end
 - 2026-07-16 [DeepSeek/deepseek-v4-pro] FDS-27 R6: drop redundant amount before-validator (Pydantic v2 coerces Decimal natively)
+- 2026-07-18 [DeepSeek/deepseek-v4-pro] FDS-27 P2-C6: add paypal_webhook lambda with signature verification
