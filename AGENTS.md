@@ -272,8 +272,21 @@ FDS-25 snapshot (2026-07-12):
 
 ---
 
+## 2026-07-18 — DeepSeek (deepseek-v4-pro) — FDS-27 P2-C8 verify_payment lambda
+
+- **Цель:** создать Lambda для сверки PayPal-платежа с сохранённым заказом.
+- **Изменено:**
+  - `src/lambdas/verify_payment/schema.py` (новый) — Pydantic v2 модель VerifyPaymentInput (paypal_order_id, event_type).
+  - `src/lambdas/verify_payment/handler.py` (новый) — Lambda-хендлер: поиск payment_session через payment_repository.get_by_provider_ref, запрос PayPal через paypal_client.get_order, сверка status=="COMPLETED" + amount/currency (Decimal).
+  - `tests/test_verify_payment.py` (новый) — 4 теста: match → verified=True, amount mismatch, currency mismatch, unknown provider_ref → AppError(404).
+- **Открыто:** —
+- **Дальше:** добавить verify_payment как шаг во второй state machine; реализовать mark_paid после успешной верификации.
+
+---
+
 ## Лента
 
+- 2026-07-18 [DeepSeek/deepseek-v4-pro] FDS-27 P2-C8: add verify_payment lambda (match amount/currency/status)
 - 2026-07-15 [DeepSeek/deepseek-v4-pro] FDS-27: SM#1 creates PayPal session, returns approval URL
 - 2026-07-15 [DeepSeek/deepseek-v4-pro] FDS-27: add create_payment_session lambda
 - 2026-07-15 [DeepSeek/deepseek-v4-pro] FDS-27: add payments repository (correlation + idempotency)
