@@ -284,8 +284,21 @@ FDS-25 snapshot (2026-07-12):
 
 ---
 
+## 2026-07-18 — DeepSeek (deepseek-v4-pro) — FDS-27 P2-C9 mark_payment_result lambda
+
+- **Цель:** создать Lambda для идемпотентного сохранения результата верификации (PAID/FAILED).
+- **Изменено:**
+  - `src/lambdas/mark_payment_result/schema.py` (новый) — Pydantic v2 модель MarkPaymentInput (verified, order_id, paypal_order_id).
+  - `src/lambdas/mark_payment_result/handler.py` (новый) — Lambda-хендлер: по флагу verified вызывает атомарный payment_repository.mark_paid или mark_failed, возвращает статус PAID/ALREADY_PAID/FAILED/ALREADY_FAILED.
+  - `tests/test_mark_payment_result.py` (новый) — 5 тестов: verified=True → PAID, already PAID → ALREADY_PAID, verified=False → FAILED, missing field → 400, empty paypal_order_id → 400.
+- **Открыто:** —
+- **Дальше:** добавить mark_payment_result как шаг во второй state machine.
+
+---
+
 ## Лента
 
+- 2026-07-18 [DeepSeek/deepseek-v4-pro] FDS-27 P2-C9: add mark_payment_result lambda (idempotent mark_paid/mark_failed)
 - 2026-07-18 [DeepSeek/deepseek-v4-pro] FDS-27 P2-C8: add verify_payment lambda (match amount/currency/status)
 - 2026-07-15 [DeepSeek/deepseek-v4-pro] FDS-27: SM#1 creates PayPal session, returns approval URL
 - 2026-07-15 [DeepSeek/deepseek-v4-pro] FDS-27: add create_payment_session lambda
