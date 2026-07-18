@@ -1,0 +1,73 @@
+{
+  "Comment": "Payment Confirmation State Machine — verify PayPal payment, mark PAID/FAILED idempotently",
+  "StartAt": "VerifyPayment",
+  "States": {
+    "VerifyPayment": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:...:function:verify_payment",
+      "Comment": "FDS-27 P2-C8: confirm PayPal order status/amount/currency matches stored session",
+      "ResultPath": "$.verification",
+      "Next": "MarkPaymentResult",
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "VerificationFailed"
+        }
+      ]
+    },
+    "MarkPaymentResult": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:...:function:mark_payment_result",
+      "Comment": "FDS-27 P2-C9: idempotently mark PAID or FAILED via atomic conditional UPDATEs",
+      "Parameters": {
+        "verified.$": "$.verification.verified",
+        "order_id.$": "$.verification.order_id",
+        "paypal_order_id.$": "$.verification.paypal_order_id"
+      },
+      "ResultPath": "$.result",
+      "Next": "PaymentResultChoice",
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "MarkFailed"
+        }
+      ]
+    },
+    "PaymentResultChoice": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.result.status",
+          "StringEquals": "PAID",
+          "Next": "PaymentSucceeded"
+        },
+        {
+          "Variable": "$.result.status",
+          "StringEquals": "ALREADY_PAID",
+          "Next": "PaymentSucceeded"
+        }
+      ],
+      "Default": "PaymentFailed"
+    },
+    "PaymentSucceeded": {
+      "Type": "Succeed"
+    },
+    "PaymentFailed": {
+      "Type": "Fail",
+      "Error": "PaymentFailed",
+      "Cause": "Payment not verified/completed"
+    },
+    "VerificationFailed": {
+      "Type": "Fail",
+      "Error": "VerificationFailed",
+      "Cause": "verify_payment raised"
+    },
+    "MarkFailed": {
+      "Type": "Fail",
+      "Error": "MarkFailed",
+      "Cause": "mark_payment_result raised"
+    }
+  }
+}

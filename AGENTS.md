@@ -296,8 +296,20 @@ FDS-25 snapshot (2026-07-12):
 
 ---
 
+## 2026-07-18 — DeepSeek (deepseek-v4-pro) — FDS-27 P2-C10 payment confirmation state machine
+
+- **Цель:** создать ASL-определение второго state machine (SM#2), связывающее webhook → verify → mark → Choice (PAID/Failed).
+- **Изменено:**
+  - `orchestration/payment-confirmation-state-machine.asl.json` (новый) — ASL: VerifyPayment → MarkPaymentResult → PaymentResultChoice → PaymentSucceeded/PaymentFailed; Catch-блоки для VerificationFailed/MarkFailed.
+  - `tests/test_payment_confirmation_asl.py` (новый) — 4 структурных теста: валидный JSON, StartAt в States, все Next/Default/Choice цели существуют, Task Resource содержит `function:` плейсхолдеры.
+- **Открыто:** —
+- **Дальше:** добавить verify_payment + mark_payment_result в DEPLOYABLE + deploy workflow; интегрировать SM#2 в CI/CD.
+
+---
+
 ## Лента
 
+- 2026-07-18 [DeepSeek/deepseek-v4-pro] FDS-27 P2-C10: add payment confirmation state machine (ASL)
 - 2026-07-18 [DeepSeek/deepseek-v4-pro] FDS-27 P2-C9: add mark_payment_result lambda (idempotent mark_paid/mark_failed)
 - 2026-07-18 [DeepSeek/deepseek-v4-pro] FDS-27 P2-C8: add verify_payment lambda (match amount/currency/status)
 - 2026-07-15 [DeepSeek/deepseek-v4-pro] FDS-27: SM#1 creates PayPal session, returns approval URL
