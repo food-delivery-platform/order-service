@@ -60,6 +60,7 @@ jobs:
                 --function-name "${func}" \
                 --zip-file "fileb://${ZIP_FILE}" \
                 --no-cli-pager
+              aws lambda wait function-updated-v2 --function-name "${func}" --no-cli-pager
               ACTION="updated"
             else
               echo "  Creating new function: ${func}"
@@ -72,6 +73,7 @@ jobs:
                 --handler "src.lambdas.${func}.handler.handler" \
                 --zip-file "fileb://${ZIP_FILE}" \
                 --no-cli-pager
+              aws lambda wait function-active-v2 --function-name "${func}" --no-cli-pager
               ACTION="created"
             fi
 
