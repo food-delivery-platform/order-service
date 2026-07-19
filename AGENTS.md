@@ -307,6 +307,18 @@ FDS-25 snapshot (2026-07-12):
 
 ---
 
+## 2026-07-19 — DeepSeek (deepseek-v4-pro) — FDS-25 hotfix: Lambda deploy waiter
+
+- **Цель:** исправить ResourceConflictException при деплое — `update-function-configuration`
+  запускался до завершения `update-function-code`/`create-function`.
+- **Изменено:**
+  - `.github/workflows/deploy-step-functions.yml` — добавлены `aws lambda wait
+    function-updated-v2` (после update-function-code) и `aws lambda wait
+    function-active-v2` (после create-function) в цикл Deploy Lambdas.
+- **Дальше:** —
+
+---
+
 ## 2026-07-19 — GLM (glm-5.2) — FDS-27 P2-C12 wire publish_order_event into SM#2
 
 - **Цель:** встроить шаг `PublishOrderEvent` во вторую state machine (SM#2)
@@ -392,6 +404,7 @@ FDS-25 snapshot (2026-07-12):
 - 2026-07-19 [GLM/glm-5.2] FDS-27 P2-C13: deploy part-2 lambdas and payment-confirmation state machine
 - 2026-07-19 [GLM/glm-5.2] FDS-27 P2-C12: wire publish_order_event into payment confirmation state machine
 - 2026-07-19 [GLM/glm-5.2] FDS-27 P2-C11: add publish_order_event lambda (EventBridge domain events)
+- 2026-07-19 [DeepSeek/deepseek-v4-pro] FDS-25 hotfix: add Lambda waiters after update-function-code / create-function to fix ResourceConflictException
 - 2026-07-18 [DeepSeek/deepseek-v4-pro] FDS-27 P2-C10: add payment confirmation state machine (ASL)
 - 2026-07-18 [DeepSeek/deepseek-v4-pro] FDS-27 P2-C9: add mark_payment_result lambda (idempotent mark_paid/mark_failed)
 - 2026-07-18 [DeepSeek/deepseek-v4-pro] FDS-27 P2-C8: add verify_payment lambda (match amount/currency/status)
