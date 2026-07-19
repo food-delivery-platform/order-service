@@ -24,7 +24,8 @@ jobs:
         run: |
           set -euo pipefail
           python -c "import json; json.load(open('orchestration/order-creation-state-machine.asl.json'))"
-          echo "ASL is valid JSON"
+          python -c "import json; json.load(open('orchestration/payment-confirmation-state-machine.asl.json'))"
+          echo "Both ASLs are valid JSON"
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -42,7 +43,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          DEPLOYABLE=("validate_order" "resolve_delivery_address" "create_order_step" "create_payment_session")
+          DEPLOYABLE=("validate_order" "resolve_delivery_address" "create_order_step" "create_payment_session" "paypal_webhook" "verify_payment" "mark_payment_result" "publish_order_event")
           ROLE_ARN="${{ secrets.LAMBDA_EXECUTION_ROLE_ARN }}"
 
           # Init summary file for created-vs-updated tracking
@@ -161,15 +162,77 @@ jobs:
 
           echo "sm_action=${SM_ACTION}" >> "${GITHUB_OUTPUT}"
 
+      - name: Render + deploy Payment Confirmation SM
+        id: deploy-payment-sm
+        run: |
+          set -euo pipefail
+
+          # Resolve actual Lambda ARNs from deployed functions
+          VERIFY_PAYMENT_ARN=$(aws lambda get-function --function-name verify_payment \
+            --query 'Configuration.FunctionArn' --output text --no-cli-pager)
+          MARK_PAYMENT_ARN=$(aws lambda get-function --function-name mark_payment_result \
+            --query 'Configuration.FunctionArn' --output text --no-cli-pager)
+          PUBLISH_ORDER_ARN=$(aws lambda get-function --function-name publish_order_event \
+            --query 'Configuration.FunctionArn' --output text --no-cli-pager)
+
+          echo "Resolved Lambda ARNs:"
+          echo "  verify_payment:       ${VERIFY_PAYMENT_ARN}"
+          echo "  mark_payment_result:  ${MARK_PAYMENT_ARN}"
+          echo "  publish_order_event:  ${PUBLISH_ORDER_ARN}"
+
+          # Substitute placeholder ARNs with real ARNs via jq walk
+          jq --arg verify_arn "${VERIFY_PAYMENT_ARN}" \
+             --arg mark_arn "${MARK_PAYMENT_ARN}" \
+             --arg publish_arn "${PUBLISH_ORDER_ARN}" \
+             'walk(
+               if type == "string" and contains("function:verify_payment") then $verify_arn
+               elif type == "string" and contains("function:mark_payment_result") then $mark_arn
+               elif type == "string" and contains("function:publish_order_event") then $publish_arn
+               else . end
+             )' \
+             orchestration/payment-confirmation-state-machine.asl.json > rendered-payment.asl.json
+
+          echo "Rendered payment ASL written to rendered-payment.asl.json"
+
+          SM_NAME="${{ secrets.AWS_PAYMENT_SM_NAME }}"
+
+          # Look up existing state machine by name
+          SM_ARN=$(aws stepfunctions list-state-machines \
+            --query "stateMachines[?name=='${SM_NAME}'].stateMachineArn" \
+            --output text --no-cli-pager)
+
+          if [ -n "${SM_ARN}" ] && [ "${SM_ARN}" != "None" ]; then
+            echo "Updating existing state machine: ${SM_NAME} (${SM_ARN})"
+            aws stepfunctions update-state-machine \
+              --state-machine-arn "${SM_ARN}" \
+              --definition "$(cat rendered-payment.asl.json)" \
+              --role-arn "${{ secrets.AWS_STEP_FUNCTIONS_ROLE_ARN }}" \
+              --no-cli-pager
+            PAYMENT_SM_ACTION="updated"
+          else
+            echo "Creating new state machine: ${SM_NAME}"
+            aws stepfunctions create-state-machine \
+              --name "${SM_NAME}" \
+              --definition "$(cat rendered-payment.asl.json)" \
+              --role-arn "${{ secrets.AWS_STEP_FUNCTIONS_ROLE_ARN }}" \
+              --no-cli-pager
+            PAYMENT_SM_ACTION="created"
+          fi
+
+          echo "payment_sm_action=${PAYMENT_SM_ACTION}" >> "${GITHUB_OUTPUT}"
+          echo "payment_sm_name=${SM_NAME}" >> "${GITHUB_OUTPUT}"
+
       - name: Deployment Summary
         if: always()
         run: |
           set -euo pipefail
 
           SM_NAME="${{ secrets.AWS_STEP_FUNCTIONS_STATE_MACHINE_NAME }}"
+          PAYMENT_SM_NAME="${{ secrets.AWS_PAYMENT_SM_NAME }}"
           REGION="${{ secrets.AWS_REGION }}"
           SUMMARY_FILE="${{ steps.deploy-lambdas.outputs.summary_file }}"
           SM_ACTION="${{ steps.deploy-sm.outputs.sm_action }}"
+          PAYMENT_SM_ACTION="${{ steps.deploy-payment-sm.outputs.payment_sm_action }}"
 
           {
             echo "## 🚀 Step Functions Deployment Summary"
@@ -177,6 +240,7 @@ jobs:
             echo "| Resource | Action |"
             echo "|----------|--------|"
             echo "| State Machine \`${SM_NAME}\` | ${SM_ACTION:-deployed} |"
+            echo "| Payment SM \`${PAYMENT_SM_NAME}\` | ${PAYMENT_SM_ACTION:-deployed} |"
             echo "| Region | \`${REGION}\` |"
             if [ -f "${SUMMARY_FILE:-}" ]; then
               while IFS=: read -r name action; do

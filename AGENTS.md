@@ -368,8 +368,28 @@ FDS-25 snapshot (2026-07-12):
 
 ---
 
+## 2026-07-19 — GLM (glm-5.2) — FDS-27 P2-C13 wire part 2 into deploy pipeline
+
+- **Цель:** добавить part-2 лямбды и payment-confirmation state machine в пайплайн деплоя.
+- **Изменено:**
+  - `scripts/package_lambdas.py` — DEPLOYABLE расширен до 8 лямбд: добавлены
+    `create_payment_session` (отсутствовал), `paypal_webhook`, `verify_payment`,
+    `mark_payment_result`, `publish_order_event`.
+  - `.github/workflows/deploy-step-functions.yml`:
+    - Validate ASL: добавлена валидация `payment-confirmation-state-machine.asl.json`.
+    - Deploy Lambdas: DEPLOYABLE-массив расширен до всех 8 лямбд.
+    - Новый шаг "Render + deploy Payment Confirmation SM": резолвинг ARN-ов
+      `verify_payment`/`mark_payment_result`/`publish_order_event`, jq-рендеринг
+      через `walk`, create/update через `${{ secrets.AWS_PAYMENT_SM_NAME }}`.
+    - Deployment Summary: добавлена строка для payment SM.
+- **Открыто:** перед деплоем необходимо добавить GitHub secret `AWS_PAYMENT_SM_NAME`.
+- **Дальше:** задокументировать `EVENT_BUS_NAME` + IAM `events:PutEvents` в `docs/deployment.md`.
+
+---
+
 ## Лента
 
+- 2026-07-19 [GLM/glm-5.2] FDS-27 P2-C13: deploy part-2 lambdas and payment-confirmation state machine
 - 2026-07-19 [GLM/glm-5.2] FDS-27 P2-C12: wire publish_order_event into payment confirmation state machine
 - 2026-07-19 [GLM/glm-5.2] FDS-27 P2-C11: add publish_order_event lambda (EventBridge domain events)
 - 2026-07-18 [DeepSeek/deepseek-v4-pro] FDS-27 P2-C10: add payment confirmation state machine (ASL)
