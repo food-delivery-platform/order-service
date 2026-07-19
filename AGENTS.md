@@ -260,9 +260,21 @@ FDS-25 snapshot (2026-07-12):
 
 ---
 
+## 2026-07-19 — DeepSeek (deepseek-v4-pro) — FDS-25 hotfix: Lambda deploy waiter
+
+- **Цель:** исправить ResourceConflictException при деплое — `update-function-configuration`
+  запускался до завершения `update-function-code`/`create-function`.
+- **Изменено:**
+  - `.github/workflows/deploy-step-functions.yml` — добавлены `aws lambda wait
+    function-updated-v2` (после update-function-code) и `aws lambda wait
+    function-active-v2` (после create-function) в цикл Deploy Lambdas.
+- **Дальше:** —
+
+---
+
 ## Лента
 
-- 2026-07-15 [DeepSeek/deepseek-v4-pro] FDS-27: SM#1 creates PayPal session, returns approval URL
+- 2026-07-19 [DeepSeek/deepseek-v4-pro] FDS-25 hotfix: add Lambda waiters after update-function-code / create-function to fix ResourceConflictException
 - 2026-07-15 [DeepSeek/deepseek-v4-pro] FDS-27: add create_payment_session lambda
 - 2026-07-15 [DeepSeek/deepseek-v4-pro] FDS-27: add payments repository (correlation + idempotency)
 - 2026-07-15 [DeepSeek/deepseek-v4-pro] FDS-27: add payment domain models + statuses
