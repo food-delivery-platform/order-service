@@ -21,6 +21,7 @@ DEPLOYABLE = [
     "validate_order",
     "resolve_delivery_address",
     "create_order_step",
+    "create_payment_session",
 ]
 
 EXCLUDED_SUFFIXES = {".pyc", ".pyo", ".pyd"}

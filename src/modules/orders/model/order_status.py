@@ -16,5 +16,6 @@ class OrderStatus(str, Enum):
     READY = "READY"
     PICKED_UP = "PICKED_UP"
     DELIVERED = "DELIVERED"
+    PAYMENT_FAILED = "PAYMENT_FAILED"
     CANCELLED = "CANCELLED"
     FAILED = "FAILED"

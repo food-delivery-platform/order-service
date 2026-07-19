@@ -262,6 +262,14 @@ FDS-25 snapshot (2026-07-12):
 
 ## Лента
 
+- 2026-07-15 [DeepSeek/deepseek-v4-pro] FDS-27: SM#1 creates PayPal session, returns approval URL
+- 2026-07-15 [DeepSeek/deepseek-v4-pro] FDS-27: add create_payment_session lambda
+- 2026-07-15 [DeepSeek/deepseek-v4-pro] FDS-27: add payments repository (correlation + idempotency)
+- 2026-07-15 [DeepSeek/deepseek-v4-pro] FDS-27: add payment domain models + statuses
+- 2026-07-15 [DeepSeek/deepseek-v4-pro] FDS-27: add PayPal REST client wrapper + unit tests
+- 2026-07-16 [DeepSeek/deepseek-v4-pro] FDS-27 R3: validate create_payment_session input with Pydantic
+- 2026-07-16 [DeepSeek/deepseek-v4-pro] FDS-27 R2: align payments to real DB schema + SQLAlchemy repository
+- 2026-07-16 [DeepSeek/deepseek-v4-pro] FDS-27: encapsulate PayPal auth token in PayPalClient (drop module globals)
 - 2026-07-13 [DeepSeek/deepseek-v4-pro] FDS-25: stub ProcessPayment as Pass placeholder (process_payment not yet implemented)
 - 2026-07-13 [DeepSeek/deepseek-v4-pro] FDS-25: drop unsupported $comment/$note root fields from ASL (SFN schema)
 - 2026-07-13 [DeepSeek/deepseek-v4-pro] FDS-25: wait for Lambda active/updated before patching config (fix ResourceConflictException)
@@ -280,3 +288,7 @@ FDS-25 snapshot (2026-07-12):
 - 2026-07-05 [DeepSeek/deepseek-v4-pro] реализовал FDS-24: CreateOrderStep с персистенцией, snapshot-ами позиций и статусом PENDING_PAYMENT (FDS-24)
 - 2026-07-02 [DeepSeek/deepseek-v4-pro] создал AGENTS.md, обновил .gitignore (.ruff_cache), пофиксил order_repository, validate_order handler, mappers, menu_service_client, readme (FDS-21)
 - 2026-07-02 [Codebuff/minimax-m3] создал бриф .local/handoff-to-deepseek-2026-07-02.md, добавил паттерны в .gitignore
+- 2026-07-16 [DeepSeek/deepseek-v4-pro] FDS-27 R4: move tests into dedicated tests/ directory
+- 2026-07-16 [DeepSeek/deepseek-v4-pro] FDS-27: R1–R4 complete (PayPal client encapsulation, DB schema alignment, Pydantic input validation, tests moved to tests/); pushed for review.
+- 2026-07-16 [DeepSeek/deepseek-v4-pro] FDS-27 R5: map CreatePaymentSession input in ASL (subtotal->amount) so SM#1 runs end-to-end
+- 2026-07-16 [DeepSeek/deepseek-v4-pro] FDS-27 R6: drop redundant amount before-validator (Pydantic v2 coerces Decimal natively)
