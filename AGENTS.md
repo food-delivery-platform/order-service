@@ -307,8 +307,40 @@ FDS-25 snapshot (2026-07-12):
 
 ---
 
+## 2026-07-19 — GLM (glm-5.2) — FDS-27 P2-C11 publish_order_event lambda
+
+- **Цель:** добавить Lambda, которая после фиксации результата платежа (C9)
+  публикует доменное событие (`order.paid` / `order.payment_failed`) в EventBridge,
+  чтобы downstream-сервисы (Delivery, Notifications, Analytics) могли отреагировать.
+- **Изменено:**
+  - `src/shared/events/event_publisher.py` (новый) — тонкая обёртка над
+    `boto3.client("events").put_events`: клиент создаётся внутри `EventPublisher.__init__`
+    (lazy import boto3), фабрика `get_event_publisher()` — test-friendly (пэчится в тестах).
+    `get_bus_name()` читает `EVENT_BUS_NAME` из секрета first, env second, default `"default"`
+    (паттерн как в `paypal_client._get_config`). `put_event` бросает `EventPublishError`
+    при ошибке boto3 или при `ErrorCode` в ответе.
+  - `src/shared/events/__init__.py` (новый) — пустой маркер пакета.
+  - `src/lambdas/publish_order_event/schema.py` (новый) — Pydantic v2 `PublishInput`
+    (order_id, paypal_order_id, status — все `min_length=1`).
+  - `src/lambdas/publish_order_event/handler.py` (новый) — Lambda-хендлер: валидация
+    входа через Pydantic → `AppError(400, "INVALID_INPUT")`; маппинг
+    `status in {"PAID","ALREADY_PAID"}` → `order.paid`, иначе `order.payment_failed`;
+    публикация через `event_publisher`; ошибка публикации → `AppError(500, "EVENT_PUBLISH_FAILED")`.
+  - `src/lambdas/publish_order_event/__init__.py` (новый) — пустой маркер.
+  - `tests/test_publish_order_event.py` (новый) — 7 hermetic-тестов: PAID → order.paid
+    (с проверкой call_args), FAILED → order.payment_failed, ALREADY_PAID → order.paid,
+    ALREADY_FAILED → order.payment_failed, missing order_id → 400, empty status → 400,
+    publish failure → 500. Все AWS-вызовы замоканы (`get_event_publisher` + `get_bus_name`).
+- **Открыто:** `publish_order_event` ещё не добавлен в `DEPLOYABLE` (`scripts/package_lambdas.py`)
+  и в deploy-workflow — отдельная задача интеграции (как для C6/C8/C9/C10).
+- **Дальше:** добавить publish_order_event (и C6/C8/C9/C10) в `DEPLOYABLE` + deploy workflow;
+  добавить шаг PublishOrderEvent в payment-confirmation state machine после MarkPaymentResult.
+
+---
+
 ## Лента
 
+- 2026-07-19 [GLM/glm-5.2] FDS-27 P2-C11: add publish_order_event lambda (EventBridge domain events)
 - 2026-07-18 [DeepSeek/deepseek-v4-pro] FDS-27 P2-C10: add payment confirmation state machine (ASL)
 - 2026-07-18 [DeepSeek/deepseek-v4-pro] FDS-27 P2-C9: add mark_payment_result lambda (idempotent mark_paid/mark_failed)
 - 2026-07-18 [DeepSeek/deepseek-v4-pro] FDS-27 P2-C8: add verify_payment lambda (match amount/currency/status)
