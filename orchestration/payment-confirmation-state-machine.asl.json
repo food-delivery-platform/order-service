@@ -1,10 +1,10 @@
 {
-  "Comment": "Payment Confirmation State Machine — verify PayPal payment, mark PAID/FAILED idempotently",
+  "Comment": "Payment Confirmation State Machine — verify PayPal payment, mark PAID/FAILED idempotently, publish order.* domain event",
   "StartAt": "VerifyPayment",
   "States": {
     "VerifyPayment": {
       "Type": "Task",
-      "Resource": "arn:aws:lambda:...:function:verify_payment",
+      "Resource": "function:verify_payment",
       "Comment": "FDS-27 P2-C8: confirm PayPal order status/amount/currency matches stored session",
       "ResultPath": "$.verification",
       "Next": "MarkPaymentResult",
@@ -18,7 +18,7 @@
     },
     "MarkPaymentResult": {
       "Type": "Task",
-      "Resource": "arn:aws:lambda:...:function:mark_payment_result",
+      "Resource": "function:mark_payment_result",
       "Comment": "FDS-27 P2-C9: idempotently mark PAID or FAILED via atomic conditional UPDATEs",
       "Parameters": {
         "verified.$": "$.verification.verified",
@@ -26,12 +26,31 @@
         "paypal_order_id.$": "$.verification.paypal_order_id"
       },
       "ResultPath": "$.result",
-      "Next": "PaymentResultChoice",
+      "Next": "PublishOrderEvent",
       "Catch": [
         {
           "ErrorEquals": ["States.ALL"],
           "ResultPath": "$.error",
           "Next": "MarkFailed"
+        }
+      ]
+    },
+    "PublishOrderEvent": {
+      "Type": "Task",
+      "Resource": "function:publish_order_event",
+      "Comment": "FDS-27 P2-C12: emit order.paid / order.payment_failed to EventBridge after result is persisted",
+      "Parameters": {
+        "order_id.$": "$.result.order_id",
+        "status.$": "$.result.status",
+        "paypal_order_id.$": "$.result.paypal_order_id"
+      },
+      "ResultPath": "$.published",
+      "Next": "PaymentResultChoice",
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "PublishFailed"
         }
       ]
     },
@@ -68,6 +87,11 @@
       "Type": "Fail",
       "Error": "MarkFailed",
       "Cause": "mark_payment_result raised"
+    },
+    "PublishFailed": {
+      "Type": "Fail",
+      "Error": "PublishFailed",
+      "Cause": "publish_order_event raised"
     }
   }
 }

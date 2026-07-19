@@ -307,6 +307,36 @@ FDS-25 snapshot (2026-07-12):
 
 ---
 
+## 2026-07-19 — GLM (glm-5.2) — FDS-27 P2-C12 wire publish_order_event into SM#2
+
+- **Цель:** встроить шаг `PublishOrderEvent` во вторую state machine (SM#2)
+  между `MarkPaymentResult` и `PaymentResultChoice`, чтобы доменное событие
+  `order.paid` / `order.payment_failed` эмитилось в EventBridge после фиксации
+  результата платежа.
+- **Изменено:**
+  - `orchestration/payment-confirmation-state-machine.asl.json`:
+    - Все Task `Resource` нормализованы к bare-форме `function:<name>`
+      (`verify_payment`, `mark_payment_result`, `publish_order_event`) — убран
+      `arn:aws:lambda:...:` префикс для консистентности с part-1 ASL.
+    - `MarkPaymentResult.Next` изменён с `PaymentResultChoice` на `PublishOrderEvent`.
+    - Добавлен новый Task-стейт `PublishOrderEvent`: Parameters из `$.result.*`,
+      `ResultPath: $.published`, `Next: PaymentResultChoice`, `Catch → PublishFailed`.
+      Choice по-прежнему читает `$.result.status` (не `$.published`) — коллизии
+      ResultPath нет.
+    - Добавлен терминальный Fail-стейт `PublishFailed` (`Error: PublishFailed`,
+      `Cause: publish_order_event raised`).
+    - Обновлён top-level `Comment` (упомянут publish step).
+  - `tests/test_payment_confirmation_asl.py`: `function:publish_order_event` добавлен
+    в `EXPECTED_FUNCTION_RESOURCES`; assertion кол-ва Task-стейтов поднято с 2 до 3;
+    обновлён module docstring (P2-C10 / P2-C12).
+- **Открыто:** deploy-workflow (`scripts/package_lambdas.py` DEPLOYABLE +
+  `.github/workflows/deploy-step-functions.yml`) для C6/C8/C9/C11 всё ещё не обновлён —
+  отдельная задача интеграции (лямбды не пакуются/не деплоятся).
+- **Дальше:** добавить publish_order_event (и C6/C8/C9) в DEPLOYABLE + deploy workflow;
+  задокументировать `EVENT_BUS_NAME` + IAM `events:PutEvents` в `docs/deployment.md`.
+
+---
+
 ## 2026-07-19 — GLM (glm-5.2) — FDS-27 P2-C11 publish_order_event lambda
 
 - **Цель:** добавить Lambda, которая после фиксации результата платежа (C9)
@@ -340,6 +370,7 @@ FDS-25 snapshot (2026-07-12):
 
 ## Лента
 
+- 2026-07-19 [GLM/glm-5.2] FDS-27 P2-C12: wire publish_order_event into payment confirmation state machine
 - 2026-07-19 [GLM/glm-5.2] FDS-27 P2-C11: add publish_order_event lambda (EventBridge domain events)
 - 2026-07-18 [DeepSeek/deepseek-v4-pro] FDS-27 P2-C10: add payment confirmation state machine (ASL)
 - 2026-07-18 [DeepSeek/deepseek-v4-pro] FDS-27 P2-C9: add mark_payment_result lambda (idempotent mark_paid/mark_failed)

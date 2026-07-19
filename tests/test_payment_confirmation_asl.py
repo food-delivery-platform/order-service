@@ -1,4 +1,4 @@
-"""Structural tests for the payment-confirmation state machine ASL (FDS-27 P2-C10).
+"""Structural tests for the payment-confirmation state machine ASL (FDS-27 P2-C10 / P2-C12).
 
 Validates that the ASL definition is well-formed and internally consistent:
 all ``StartAt``, ``Next``, ``Default``, and Choice targets reference real states,
@@ -19,6 +19,7 @@ ASL_PATH = (
 EXPECTED_FUNCTION_RESOURCES = {
     "function:verify_payment",
     "function:mark_payment_result",
+    "function:publish_order_event",
 }
 
 
@@ -119,7 +120,7 @@ def test_task_resources_are_function_placeholders():
     data = _load()
     resources = _collect_task_resources(data)
 
-    assert len(resources) == 2, "Expected exactly 2 Task states"
+    assert len(resources) == 3, "Expected exactly 3 Task states"
 
     for resource in resources:
         # Must contain one of the expected function:<name> patterns
