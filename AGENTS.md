@@ -399,8 +399,21 @@ FDS-25 snapshot (2026-07-12):
 
 ---
 
+## 2026-07-19 — DeepSeek (deepseek-v4-pro) — sync main + Lambda deploy wait fix
+
+- **Цель:** синхронизировать `origin/main` в `FDS-27-part2` после мёрж-конфликтов.
+- **Изменено:**
+  - `.github/workflows/deploy-step-functions.yml` — `aws lambda wait` команды уже присутствуют (пришли из main hotfix, авто-мёрж).
+  - `AGENTS.md` — union журнальных записей обеих веток.
+  - `scripts/package_lambdas.py` — сохранена версия HEAD (8 лямбд).
+- **Открыто:** —
+- **Дальше:** —
+
+---
+
 ## Лента
 
+- 2026-07-19 [DeepSeek/deepseek-v4-pro] Synced main + added Lambda deploy wait fix to part2
 - 2026-07-19 [GLM/glm-5.2] FDS-27 P2-C13: deploy part-2 lambdas and payment-confirmation state machine
 - 2026-07-19 [GLM/glm-5.2] FDS-27 P2-C12: wire publish_order_event into payment confirmation state machine
 - 2026-07-19 [GLM/glm-5.2] FDS-27 P2-C11: add publish_order_event lambda (EventBridge domain events)
