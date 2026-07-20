@@ -24,13 +24,6 @@ from src.shared.payments.paypal_client import verify_webhook_signature
 
 logger = logging.getLogger(__name__)
 
-# PayPal webhook header names (API Gateway lowercases them).
-_HEADER_TRANSMISSION_ID = "paypal-transmission-id"
-_HEADER_TRANSMISSION_TIME = "paypal-transmission-time"
-_HEADER_CERT_URL = "paypal-cert-url"
-_HEADER_AUTH_ALGO = "paypal-auth-algo"
-_HEADER_TRANSMISSION_SIG = "paypal-transmission-sig"
-
 _SM_ARN_ENV = "PAYMENT_CONFIRMATION_SM_ARN"
 
 

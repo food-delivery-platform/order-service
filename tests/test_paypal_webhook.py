@@ -17,7 +17,7 @@ from src.lambdas.paypal_webhook.handler import handler
 # Fixtures
 # ---------------------------------------------------------------------------
 
-_SM_ARN = "arn:aws:states:us-east-1:123456789012:stateMachine:payment-confirmation"
+_SM_ARN = "arn:aws:states:us-east-1:000000000000:stateMachine:payment-confirmation"
 
 _BASE_EVENT = {
     "headers": {
