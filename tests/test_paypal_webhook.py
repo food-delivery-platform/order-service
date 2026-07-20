@@ -1,22 +1,23 @@
 """Hermetic unit tests for paypal_webhook lambda (FDS-27 P2-C6).
 
-All external dependencies (verify_webhook_signature, get_service_secret)
+All external dependencies (verify_webhook_signature, boto3 stepfunctions)
 are mocked — no network calls.
 """
 
 from __future__ import annotations
 
 import json
-from unittest.mock import patch
+import os
+from unittest.mock import MagicMock, patch
 
-import pytest
 
 from src.lambdas.paypal_webhook.handler import handler
-from src.shared.errors.app_error import AppError
 
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
+_SM_ARN = "arn:aws:states:us-east-1:123456789012:stateMachine:payment-confirmation"
 
 _BASE_EVENT = {
     "headers": {
@@ -37,47 +38,94 @@ _BASE_EVENT = {
     ),
 }
 
+_NORMALISED = {
+    "event_type": "CHECKOUT.ORDER.APPROVED",
+    "paypal_order_id": "PAYPAL-ORDER-42",
+    "status": "APPROVED",
+}
+
+
+def _patch_env():
+    """Set PAYMENT_CONFIRMATION_SM_ARN for tests that need it."""
+    return patch.dict(os.environ, {"PAYMENT_CONFIRMATION_SM_ARN": _SM_ARN})
+
+
+def _assert_response(response: dict, expected_status: int):
+    """Assert an API Gateway proxy response has the expected shape and status."""
+    assert isinstance(response, dict)
+    assert "statusCode" in response
+    assert "headers" in response
+    assert "body" in response
+    assert response["statusCode"] == expected_status
+    assert response["headers"]["Content-Type"] == "application/json"
+    body = json.loads(response["body"])
+    return body
+
 
 # ---------------------------------------------------------------------------
-# Test 1: valid signature → normalised dict
+# Test 1: valid signature → starts SM → 200 accepted
 # ---------------------------------------------------------------------------
 
 
 @patch("src.lambdas.paypal_webhook.handler.verify_webhook_signature", return_value=True)
-def test_valid_signature_returns_normalised_event(_mock_verify):
-    result = handler(_BASE_EVENT, None)
+@patch("src.lambdas.paypal_webhook.handler.boto3.client")
+def test_valid_signature_starts_sm_and_returns_200(mock_boto3_client, _mock_verify):
+    mock_sfn = MagicMock()
+    mock_boto3_client.return_value = mock_sfn
 
-    assert result == {
-        "event_type": "CHECKOUT.ORDER.APPROVED",
-        "paypal_order_id": "PAYPAL-ORDER-42",
-        "status": "APPROVED",
-    }
+    with _patch_env():
+        response = handler(_BASE_EVENT, None)
+
+    body = _assert_response(response, 200)
+    assert body == {"status": "accepted", "paypal_order_id": "PAYPAL-ORDER-42"}
+
     _mock_verify.assert_called_once_with(_BASE_EVENT["headers"], _BASE_EVENT["body"])
+    mock_boto3_client.assert_called_once_with("stepfunctions")
+    mock_sfn.start_execution.assert_called_once_with(
+        stateMachineArn=_SM_ARN,
+        input=json.dumps(_NORMALISED),
+    )
 
 
 # ---------------------------------------------------------------------------
-# Test 2: invalid signature → AppError(401)
+# Test 2: invalid signature → 401
 # ---------------------------------------------------------------------------
 
 
 @patch(
-    "src.lambdas.paypal_webhook.handler.verify_webhook_signature", return_value=False
+    "src.lambdas.paypal_webhook.handler.verify_webhook_signature",
+    return_value=False,
 )
-def test_invalid_signature_raises_401(_mock_verify):
-    with pytest.raises(AppError) as exc_info:
-        handler(_BASE_EVENT, None)
-    assert exc_info.value.status_code == 401
-    assert exc_info.value.code == "WEBHOOK_UNVERIFIED"
+def test_invalid_signature_returns_401(_mock_verify):
+    with _patch_env():
+        response = handler(_BASE_EVENT, None)
+
+    body = _assert_response(response, 401)
+    assert body["error"] == "WEBHOOK_UNVERIFIED"
 
 
 # ---------------------------------------------------------------------------
-# Test 3: malformed body → AppError(400)
+# Test 3: missing PAYMENT_CONFIRMATION_SM_ARN → 500
 # ---------------------------------------------------------------------------
 
 
 @patch("src.lambdas.paypal_webhook.handler.verify_webhook_signature", return_value=True)
-def test_missing_event_type_raises_400(_mock_verify):
-    """Missing ``event_type`` in the parsed body → AppError(400)."""
+def test_missing_sm_arn_returns_500(_mock_verify):
+    with patch.dict(os.environ, {}, clear=True):
+        response = handler(_BASE_EVENT, None)
+
+    body = _assert_response(response, 500)
+    assert body["error"] == "MISSING_SM_ARN"
+
+
+# ---------------------------------------------------------------------------
+# Test 4: missing event_type → 400
+# ---------------------------------------------------------------------------
+
+
+@patch("src.lambdas.paypal_webhook.handler.verify_webhook_signature", return_value=True)
+def test_missing_event_type_returns_400(_mock_verify):
+    """Missing ``event_type`` in the parsed body → 400."""
     bad_event = {
         **_BASE_EVENT,
         "body": json.dumps(
@@ -86,43 +134,78 @@ def test_missing_event_type_raises_400(_mock_verify):
             }
         ),
     }
-    with pytest.raises(AppError) as exc_info:
-        handler(bad_event, None)
-    assert exc_info.value.status_code == 400
-    assert exc_info.value.code == "INVALID_WEBHOOK_PAYLOAD"
+    with _patch_env():
+        response = handler(bad_event, None)
+
+    body = _assert_response(response, 400)
+    assert body["error"] == "INVALID_WEBHOOK_PAYLOAD"
+
+
+# ---------------------------------------------------------------------------
+# Test 5: missing resource → 400
+# ---------------------------------------------------------------------------
 
 
 @patch("src.lambdas.paypal_webhook.handler.verify_webhook_signature", return_value=True)
-def test_missing_resource_raises_400(_mock_verify):
-    """Missing ``resource`` object → AppError(400)."""
+def test_missing_resource_returns_400(_mock_verify):
+    """Missing ``resource`` object → 400."""
     bad_event = {
         **_BASE_EVENT,
         "body": json.dumps({"event_type": "CHECKOUT.ORDER.APPROVED"}),
     }
-    with pytest.raises(AppError) as exc_info:
-        handler(bad_event, None)
-    assert exc_info.value.status_code == 400
-    assert exc_info.value.code == "INVALID_WEBHOOK_PAYLOAD"
+    with _patch_env():
+        response = handler(bad_event, None)
+
+    body = _assert_response(response, 400)
+    assert body["error"] == "INVALID_WEBHOOK_PAYLOAD"
+
+
+# ---------------------------------------------------------------------------
+# Test 6: not-JSON body → 400
+# ---------------------------------------------------------------------------
 
 
 @patch("src.lambdas.paypal_webhook.handler.verify_webhook_signature", return_value=True)
-def test_not_json_body_raises_400(_mock_verify):
-    """Body is not valid JSON → AppError(400, INVALID_JSON)."""
+def test_not_json_body_returns_400(_mock_verify):
+    """Body is not valid JSON → 400, INVALID_JSON."""
     bad_event = {**_BASE_EVENT, "body": "not-json!!!"}
-    with pytest.raises(AppError) as exc_info:
-        handler(bad_event, None)
-    assert exc_info.value.status_code == 400
-    assert exc_info.value.code == "INVALID_JSON"
+    with _patch_env():
+        response = handler(bad_event, None)
+
+    body = _assert_response(response, 400)
+    assert body["error"] == "INVALID_JSON"
 
 
 # ---------------------------------------------------------------------------
-# Edge case: multiValueHeaders
+# Test 7: missing body → 400
 # ---------------------------------------------------------------------------
 
 
 @patch("src.lambdas.paypal_webhook.handler.verify_webhook_signature", return_value=True)
-def test_multi_value_headers_are_flattened(_mock_verify):
+def test_missing_body_returns_400(_mock_verify):
+    """No 'body' key in event → 400."""
+    event = {"headers": _BASE_EVENT["headers"]}
+    with _patch_env():
+        response = handler(event, None)
+
+    body = _assert_response(response, 400)
+    assert body["error"] == "MISSING_BODY"
+
+
+# ---------------------------------------------------------------------------
+# Test 8: multiValueHeaders are flattened, SM started
+# ---------------------------------------------------------------------------
+
+
+@patch("src.lambdas.paypal_webhook.handler.verify_webhook_signature", return_value=True)
+@patch("src.lambdas.paypal_webhook.handler.boto3.client")
+def test_multi_value_headers_are_flattened_and_sm_started(
+    mock_boto3_client, _mock_verify
+):
     """API Gateway may use multiValueHeaders (lists) instead of headers."""
+    mock_sfn = MagicMock()
+    mock_boto3_client.return_value = mock_sfn
+
     event = {
         "multiValueHeaders": {
             "paypal-transmission-id": ["txn-multi"],
@@ -135,26 +218,18 @@ def test_multi_value_headers_are_flattened(_mock_verify):
         },
         "body": _BASE_EVENT["body"],
     }
-    result = handler(event, None)
 
-    assert result["paypal_order_id"] == "PAYPAL-ORDER-42"
+    with _patch_env():
+        response = handler(event, None)
+
+    body = _assert_response(response, 200)
+    assert body["paypal_order_id"] == "PAYPAL-ORDER-42"
+
     # Assert headers were flattened to strings
     _mock_verify.assert_called_once()
     headers_arg = _mock_verify.call_args[0][0]
     assert headers_arg["paypal-transmission-id"] == "txn-multi"
     assert headers_arg["paypal-transmission-sig"] == "sig-multi"
 
-
-# ---------------------------------------------------------------------------
-# Edge case: missing body
-# ---------------------------------------------------------------------------
-
-
-@patch("src.lambdas.paypal_webhook.handler.verify_webhook_signature", return_value=True)
-def test_missing_body_raises_400(_mock_verify):
-    """No 'body' key in event → AppError(400)."""
-    event = {"headers": _BASE_EVENT["headers"]}
-    with pytest.raises(AppError) as exc_info:
-        handler(event, None)
-    assert exc_info.value.status_code == 400
-    assert exc_info.value.code == "MISSING_BODY"
+    # Assert SM was started
+    mock_sfn.start_execution.assert_called_once()
