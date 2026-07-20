@@ -411,9 +411,30 @@ FDS-25 snapshot (2026-07-12):
 
 ---
 
+## 2026-07-19 — DeepSeek (deepseek-v4-pro) — FDS-27 paypal_webhook: start SM + deploy per-lambda env vars
+
+- **Цель:** подключить paypal_webhook Lambda к payment-confirmation state machine,
+  вернуть API Gateway proxy response, и расширить CI для per-lambda переменных окружения.
+- **Изменено:**
+  - `paypal_webhook/handler.py` — весь хендлер обёрнут в try/except AppError →
+    `from_app_error`; после верификации подписи и валидации Pydantic читает
+    `PAYMENT_CONFIRMATION_SM_ARN` из env (500 если отсутствует), запускает
+    payment-confirmation SM через `boto3.client("stepfunctions").start_execution`,
+    возвращает `{"statusCode": 200, "body": ...}`.
+  - `tests/test_paypal_webhook.py` — 8 hermetic-тестов (было 7): мокается boto3
+    stepfunctions + verify_webhook_signature; покрыты пути 200/401/500/400×4/multiValueHeaders.
+  - `.github/workflows/deploy-step-functions.yml` — цикл Deploy Lambdas расширен:
+    для `publish_order_event` добавляется `EVENT_BUS_NAME="food-delivery-orders"`,
+    для `paypal_webhook` — `PAYMENT_CONFIRMATION_SM_ARN` из секрета; все функции
+    сохраняют `SERVICE_SECRET_ARN` (merge через jq без перезаписи).
+- **Открыто:** —
+- **Дальше:** —
+
+---
+
 ## Лента
 
-- 2026-07-19 [DeepSeek/deepseek-v4-pro] Synced main + added Lambda deploy wait fix to part2
+- 2026-07-19 [DeepSeek/deepseek-v4-pro] FDS-27: paypal_webhook starts payment-confirmation SM + per-lambda env vars in CI
 - 2026-07-19 [GLM/glm-5.2] FDS-27 P2-C13: deploy part-2 lambdas and payment-confirmation state machine
 - 2026-07-19 [GLM/glm-5.2] FDS-27 P2-C12: wire publish_order_event into payment confirmation state machine
 - 2026-07-19 [GLM/glm-5.2] FDS-27 P2-C11: add publish_order_event lambda (EventBridge domain events)

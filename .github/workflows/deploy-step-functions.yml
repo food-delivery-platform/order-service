@@ -89,6 +89,17 @@ jobs:
               --arg arn "${{ secrets.SERVICE_SECRET_ARN }}" \
               '(. // {}) + {SERVICE_SECRET_ARN: $arn}')
 
+            # Per-function extra env vars (merged on top, never overwrites SERVICE_SECRET_ARN).
+            EXTRA_VARS="{}"
+            if [ "${func}" = "publish_order_event" ]; then
+              EXTRA_VARS='{"EVENT_BUS_NAME": "food-delivery-orders"}'
+            elif [ "${func}" = "paypal_webhook" ]; then
+              EXTRA_VARS=$(echo '{}' | jq -c \
+                --arg sm_arn "${{ secrets.PAYMENT_CONFIRMATION_SM_ARN }}" \
+                '. + {PAYMENT_CONFIRMATION_SM_ARN: $sm_arn}')
+            fi
+            MERGED_VARS=$(echo "${MERGED_VARS}" | jq -c --argjson extra "${EXTRA_VARS}" '. + $extra')
+
             aws lambda update-function-configuration \
               --function-name "${func}" \
               --environment "{\"Variables\": ${MERGED_VARS}}" \
