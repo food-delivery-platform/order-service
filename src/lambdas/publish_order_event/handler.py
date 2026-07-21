@@ -26,6 +26,10 @@ from src.shared.validation import validated_input
 logger = logging.getLogger(__name__)
 
 _PAID_STATUSES = {"PAID", "ALREADY_PAID"}
+# Both statuses mean the payment is confirmed paid; they differ only by
+# idempotency: "PAID" = marked paid by THIS execution, "ALREADY_PAID" = was
+# already paid by an earlier (retried/duplicate) run. Both must still emit
+# the order.paid event, so they are grouped together here.
 _SOURCE = "order-service"
 
 

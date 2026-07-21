@@ -486,9 +486,22 @@ FDS-25 snapshot (2026-07-12):
 
 ---
 
+## 2026-07-21 — DeepSeek (deepseek-v4-pro) — FDS-27 explain PAID vs ALREADY_PAID grouping
+
+- **Цель:** задокументировать разницу между PAID и ALREADY_PAID для будущих разработчиков.
+- **Изменено:**
+  - `publish_order_event/handler.py` — добавлен комментарий над `_PAID_STATUSES`:
+    PAID = paid by this execution, ALREADY_PAID = paid by earlier retry;
+    оба должны эмитить order.paid.
+- **Открыто:** —
+- **Дальше:** —
+
+---
+
 ## Лента
 
 - 2026-07-21 [DeepSeek/deepseek-v4-pro] FDS-27: document all API endpoints and Step Functions steps in readme.md
+- 2026-07-21 [DeepSeek/deepseek-v4-pro] FDS-27: explain PAID vs ALREADY_PAID grouping
 - 2026-07-21 [DeepSeek/deepseek-v4-pro] FDS-27: extract input validation into a decorator (validated_input)
 - 2026-07-21 [DeepSeek/deepseek-v4-pro] FDS-27: stricter shared PayPal-ID format validator (validators.py)
 - 2026-07-19 [DeepSeek/deepseek-v4-pro] FDS-27: paypal_webhook starts payment-confirmation SM + per-lambda env vars in CI
