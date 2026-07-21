@@ -517,6 +517,7 @@ FDS-25 snapshot (2026-07-12):
 
 ## Лента
 
+- 2026-07-21 [DeepSeek/deepseek-v4-pro] FDS-28: lambda deployment zips now bundle runtime dependencies (fixes runtime ImportModuleError: No module named 'pydantic')
 - 2026-07-21 [DeepSeek/deepseek-v4-pro] FDS-27: native UUID order_id type, serialize as str at JSON boundaries
 - 2026-07-21 [DeepSeek/deepseek-v4-pro] FDS-27: document all API endpoints and Step Functions steps in readme.md
 - 2026-07-21 [DeepSeek/deepseek-v4-pro] FDS-27: explain PAID vs ALREADY_PAID grouping
