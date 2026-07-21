@@ -1,0 +1,220 @@
+openapi: 3.0.3
+info:
+  title: Order Service API
+  version: "1.0.0"
+  description: >
+    REST API of the Food Delivery Order Service (FDS-27).
+    Serverless stack: AWS Lambda + API Gateway (no web framework, so there is
+    no auto-generated Swagger UI).
+    NOTE: createOrder, cancelOrder and getOrderStatus are still stubs and
+    currently return HTTP 501 (NOT_IMPLEMENTED).
+servers:
+  - url: https://kgig1rjcpj.execute-api.us-east-1.amazonaws.com
+    description: API Gateway base URL (add a stage prefix here if one is used)
+paths:
+  /api/v1/orders:
+    post:
+      operationId: createOrder
+      summary: Create an order
+      description: "Not implemented yet - currently returns 501."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateOrderRequest' }
+      responses:
+        '201':
+          description: Order created (planned contract)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrderResponse' }
+        '501':
+          $ref: '#/components/responses/NotImplemented'
+    get:
+      operationId: getCustomerOrders
+      summary: List the current customer's orders
+      parameters:
+        - name: customerId
+          in: query
+          required: false
+          schema: { type: string }
+          description: If omitted, taken from the authorizer claims (sub).
+      responses:
+        '200':
+          description: List of orders
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  orders:
+                    type: array
+                    items: { $ref: '#/components/schemas/OrderResponse' }
+        '400':
+          $ref: '#/components/responses/Error'
+  /api/v1/orders/{orderId}:
+    get:
+      operationId: getOrderById
+      summary: Get one order by id
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      responses:
+        '200':
+          description: The order
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrderResponse' }
+        '404':
+          $ref: '#/components/responses/Error'
+  /api/v1/orders/{orderId}/cancel:
+    post:
+      operationId: cancelOrder
+      summary: Cancel an order
+      description: "Not implemented yet - currently returns 501."
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CancelOrderRequest' }
+      responses:
+        '200':
+          description: Order cancelled (planned contract)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrderResponse' }
+        '501':
+          $ref: '#/components/responses/NotImplemented'
+  /api/v1/orders/{orderId}/status:
+    get:
+      operationId: getOrderStatus
+      summary: Get order status
+      description: "Not implemented yet - currently returns 501."
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      responses:
+        '200':
+          description: Order status (planned contract)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrderStatusResponse' }
+        '501':
+          $ref: '#/components/responses/NotImplemented'
+  /api/payment/webhook:
+    post:
+      operationId: paypalWebhook
+      summary: Receive PayPal webhook notifications
+      description: >
+        Replace this path with the exact PaypalWebhookPath from the
+        CloudFormation Outputs. Verifies the PayPal signature and then starts
+        the payment-confirmation state machine. Called by PayPal, not by clients.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PaypalWebhookEvent' }
+      responses:
+        '200':
+          description: Accepted
+        '401':
+          description: Invalid webhook signature
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+components:
+  parameters:
+    OrderId:
+      name: orderId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  responses:
+    Error:
+      description: Error
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    NotImplemented:
+      description: Not implemented yet (501)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+  schemas:
+    OrderStatus:
+      type: string
+      enum: [CREATED, PENDING_PAYMENT, PAID, READY, PICKED_UP, DELIVERED, PAYMENT_FAILED, CANCELLED, FAILED]
+    CreateOrderItem:
+      type: object
+      required: [menuItemId, quantity]
+      properties:
+        menuItemId: { type: string }
+        quantity: { type: integer, minimum: 1 }
+    DeliveryAddress:
+      type: object
+      required: [street, city, postalCode]
+      properties:
+        street: { type: string }
+        city: { type: string }
+        postalCode: { type: string }
+        latitude: { type: number, nullable: true }
+        longitude: { type: number, nullable: true }
+        notes: { type: string, nullable: true }
+    CreateOrderRequest:
+      type: object
+      required: [customerId, restaurantId, items, deliveryAddress]
+      properties:
+        customerId: { type: string }
+        restaurantId: { type: string }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/CreateOrderItem' }
+        deliveryAddress: { $ref: '#/components/schemas/DeliveryAddress' }
+        deliveryAddressId:
+          type: string
+          description: Optional - if the address already exists.
+    OrderItem:
+      type: object
+      properties:
+        menuItemId: { type: string }
+        name: { type: string }
+        quantity: { type: integer }
+        unitPrice: { type: number }
+        lineTotal: { type: number }
+    OrderResponse:
+      type: object
+      properties:
+        orderId: { type: string, format: uuid }
+        customerId: { type: string }
+        restaurantId: { type: string }
+        status: { $ref: '#/components/schemas/OrderStatus' }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/OrderItem' }
+        total: { type: number }
+        createdAt: { type: string, format: date-time, nullable: true }
+        updatedAt: { type: string, format: date-time, nullable: true }
+    OrderStatusResponse:
+      type: object
+      properties:
+        orderId: { type: string, format: uuid }
+        status: { $ref: '#/components/schemas/OrderStatus' }
+        updatedAt: { type: string, format: date-time, nullable: true }
+    CancelOrderRequest:
+      type: object
+      properties:
+        reason: { type: string }
+    PaypalWebhookEvent:
+      type: object
+      properties:
+        event_type: { type: string, example: PAYMENT.CAPTURE.COMPLETED }
+        resource:
+          type: object
+          properties:
+            id: { type: string }
+            status: { type: string }
+    ErrorResponse:
+      type: object
+      properties:
+        code: { type: string }
+        message: { type: string }
