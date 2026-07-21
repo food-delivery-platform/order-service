@@ -56,7 +56,7 @@ def handler(event, context=None):
             source=_SOURCE,
             detail_type=event_name,
             detail={
-                "order_id": event.order_id,
+                "order_id": str(event.order_id),
                 "paypal_order_id": event.paypal_order_id,
                 "status": event.status,
             },
@@ -79,5 +79,5 @@ def handler(event, context=None):
     return {
         "published": True,
         "event_name": event_name,
-        "order_id": event.order_id,
+        "order_id": str(event.order_id),
     }

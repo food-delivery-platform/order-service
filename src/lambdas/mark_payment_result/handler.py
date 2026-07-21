@@ -49,7 +49,7 @@ def handler(event, context=None):
         status = "FAILED" if applied else "ALREADY_FAILED"
 
     return {
-        "order_id": event.order_id,
+        "order_id": str(event.order_id),
         "paypal_order_id": event.paypal_order_id,
         "status": status,
         "applied": applied,

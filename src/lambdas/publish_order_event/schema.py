@@ -6,12 +6,14 @@ handler emits the domain event to EventBridge.
 
 from __future__ import annotations
 
+from uuid import UUID
+
 from pydantic import BaseModel, Field
 
 
 class PublishInput(BaseModel):
     """Validated input for the publish_order_event Lambda."""
 
-    order_id: str = Field(..., min_length=1)
+    order_id: UUID
     paypal_order_id: str = Field(..., min_length=1)
     status: str = Field(..., min_length=1)

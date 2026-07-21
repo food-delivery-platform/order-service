@@ -498,8 +498,26 @@ FDS-25 snapshot (2026-07-12):
 
 ---
 
+---
+
+## 2026-07-21 — DeepSeek (deepseek-v4-pro) — FDS-27 native UUID order_id, serialize as str
+
+- **Цель:** заменить кастомный field_validator order_id на нативный тип UUID, конвертировать в str на границах JSON.
+- **Изменено:**
+  - `mark_payment_result/schema.py` — order_id: UUID (был str + field_validator), убраны импорты uuid/field_validator.
+  - `publish_order_event/schema.py` — order_id: UUID (был str + min_length=1).
+  - `mark_payment_result/handler.py` — str(event.order_id) в return dict.
+  - `publish_order_event/handler.py` — str(event.order_id) в EventBridge detail и return dict.
+  - `test_mark_payment_result.py` — добавлен test_result_is_json_serializable (json.dumps + round-trip).
+  - `test_publish_order_event.py` — фикстуры на валидный UUID, добавлены test_non_uuid_order_id_raises_400 и test_result_is_json_serializable.
+- **Открыто:** —
+- **Дальше:** —
+
+---
+
 ## Лента
 
+- 2026-07-21 [DeepSeek/deepseek-v4-pro] FDS-27: native UUID order_id type, serialize as str at JSON boundaries
 - 2026-07-21 [DeepSeek/deepseek-v4-pro] FDS-27: document all API endpoints and Step Functions steps in readme.md
 - 2026-07-21 [DeepSeek/deepseek-v4-pro] FDS-27: explain PAID vs ALREADY_PAID grouping
 - 2026-07-21 [DeepSeek/deepseek-v4-pro] FDS-27: extract input validation into a decorator (validated_input)

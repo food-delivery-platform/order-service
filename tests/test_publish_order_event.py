@@ -6,6 +6,7 @@ mocked — no real AWS calls.
 
 from __future__ import annotations
 
+import json
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -18,14 +19,16 @@ from src.shared.events.event_publisher import EventPublishError
 # Helpers
 # ---------------------------------------------------------------------------
 
+_VALID_UUID = "550e8400-e29b-41d4-a716-446655440000"
+
 _VALID_EVENT_PAID = {
-    "order_id": "ord-42",
+    "order_id": _VALID_UUID,
     "paypal_order_id": "5O190127TN364715T",
     "status": "PAID",
 }
 
 _VALID_EVENT_FAILED = {
-    "order_id": "ord-42",
+    "order_id": _VALID_UUID,
     "paypal_order_id": "5O190127TN364715T",
     "status": "FAILED",
 }
@@ -63,14 +66,14 @@ def test_paid_status_emits_order_paid(mock_pub, _mock_bus):
     assert result == {
         "published": True,
         "event_name": "order.paid",
-        "order_id": "ord-42",
+        "order_id": _VALID_UUID,
     }
     pub.put_event.assert_called_once_with(
         bus="orders-bus",
         source="order-service",
         detail_type="order.paid",
         detail={
-            "order_id": "ord-42",
+            "order_id": _VALID_UUID,
             "paypal_order_id": "5O190127TN364715T",
             "status": "PAID",
         },
@@ -92,7 +95,7 @@ def test_failed_status_emits_payment_failed(mock_pub, _mock_bus):
 
     assert result["event_name"] == "order.payment_failed"
     assert result["published"] is True
-    assert result["order_id"] == "ord-42"
+    assert result["order_id"] == _VALID_UUID
     pub.put_event.assert_called_once()
     assert pub.put_event.call_args.kwargs["detail_type"] == "order.payment_failed"
     assert pub.put_event.call_args.kwargs["detail"]["status"] == "FAILED"
@@ -117,7 +120,7 @@ def test_already_paid_emits_order_paid(mock_pub, _mock_bus):
         source="order-service",
         detail_type="order.paid",
         detail={
-            "order_id": "ord-42",
+            "order_id": _VALID_UUID,
             "paypal_order_id": "5O190127TN364715T",
             "status": "ALREADY_PAID",
         },
@@ -145,7 +148,7 @@ def test_already_failed_emits_payment_failed(mock_pub, _mock_bus):
         source="order-service",
         detail_type="order.payment_failed",
         detail={
-            "order_id": "ord-42",
+            "order_id": _VALID_UUID,
             "paypal_order_id": "5O190127TN364715T",
             "status": "ALREADY_FAILED",
         },
@@ -171,7 +174,7 @@ def test_missing_order_id_raises_400():
 def test_empty_status_raises_400():
     """Empty string for ``status`` → AppError(400, INVALID_INPUT)."""
     bad_event = {
-        "order_id": "ord-1",
+        "order_id": _VALID_UUID,
         "paypal_order_id": "5O190127TN364715T",
         "status": "",
     }
@@ -186,6 +189,39 @@ def test_empty_status_raises_400():
 # ---------------------------------------------------------------------------
 # Test 5: publisher raises EventPublishError → AppError(500, EVENT_PUBLISH_FAILED)
 # ---------------------------------------------------------------------------
+
+
+def test_non_uuid_order_id_raises_400():
+    """A non-UUID order_id like 'not-a-uuid' → AppError(400, INVALID_INPUT)."""
+    bad_event = {
+        "order_id": "not-a-uuid",
+        "paypal_order_id": "5O190127TN364715T",
+        "status": "PAID",
+    }
+
+    with pytest.raises(AppError) as exc_info:
+        handler(bad_event, None)
+
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.code == "INVALID_INPUT"
+
+
+@_BUS_PATCH
+@_PUBLISHER_PATCH
+def test_result_is_json_serializable(mock_pub, _mock_bus):
+    """The returned dict is JSON-encodable and order_id is a plain str."""
+    pub = _make_mock_publisher()
+    mock_pub.return_value = pub
+
+    result = handler(_VALID_EVENT_PAID, None)
+
+    dumped = json.dumps(result)
+    assert isinstance(dumped, str)
+
+    # Round-trip to verify order_id survived as a string
+    reloaded = json.loads(dumped)
+    assert reloaded["order_id"] == _VALID_UUID
+    assert isinstance(reloaded["order_id"], str)
 
 
 @_BUS_PATCH

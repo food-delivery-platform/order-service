@@ -6,6 +6,7 @@ mocked — no database calls.
 
 from __future__ import annotations
 
+import json
 from unittest.mock import patch
 
 import pytest
@@ -190,3 +191,24 @@ def test_non_uuid_order_id_raises_400():
 
     assert exc_info.value.status_code == 400
     assert exc_info.value.code == "INVALID_INPUT"
+
+
+# ---------------------------------------------------------------------------
+# Test 8: serialization guard — json.dumps succeeds, order_id is str
+# ---------------------------------------------------------------------------
+
+
+@patch("src.lambdas.mark_payment_result.handler.payment_repository.mark_paid")
+def test_result_is_json_serializable(mock_mark_paid):
+    """The returned dict is JSON-encodable and order_id is a plain str."""
+    mock_mark_paid.return_value = True
+
+    result = handler(_VALID_EVENT_VERIFIED, None)
+
+    dumped = json.dumps(result)
+    assert isinstance(dumped, str)
+
+    # Round-trip to verify order_id survived as a string
+    reloaded = json.loads(dumped)
+    assert reloaded["order_id"] == _VALID_UUID
+    assert isinstance(reloaded["order_id"], str)
