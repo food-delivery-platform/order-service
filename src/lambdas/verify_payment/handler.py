@@ -17,26 +17,21 @@ from __future__ import annotations
 import logging
 from decimal import Decimal
 
-from pydantic import ValidationError
-
 from src.lambdas.verify_payment.schema import VerifyPaymentInput
 from src.shared.errors.app_error import AppError
 from src.shared.payments import paypal_client
 from src.shared.payments import payment_repository
+from src.shared.validation import validated_input
 
 logger = logging.getLogger(__name__)
 
 
+@validated_input(VerifyPaymentInput)
 def handler(event, context=None):
     # ------------------------------------------------------------------
-    # 1. Parse + validate input (Pydantic v2)
+    # 1. Validated input (via decorator)
     # ------------------------------------------------------------------
-    try:
-        data = VerifyPaymentInput.model_validate(event)
-    except ValidationError as exc:
-        raise AppError(400, "INVALID_INPUT", str(exc)) from exc
-
-    paypal_order_id = data.paypal_order_id
+    paypal_order_id = event.paypal_order_id
 
     # ------------------------------------------------------------------
     # 2. Look up the stored payment session

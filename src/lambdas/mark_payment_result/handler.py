@@ -16,11 +16,9 @@ from __future__ import annotations
 
 import logging
 
-from pydantic import ValidationError
-
 from src.lambdas.mark_payment_result.schema import MarkPaymentInput
-from src.shared.errors.app_error import AppError
 from src.shared.payments import payment_repository
+from src.shared.validation import validated_input
 
 logger = logging.getLogger(__name__)
 
@@ -29,33 +27,30 @@ _FAILURE_CODE = "PAYMENT_NOT_VERIFIED"
 _FAILURE_MESSAGE = "PayPal payment did not match the order"
 
 
+@validated_input(MarkPaymentInput)
 def handler(event, context=None):
     # ------------------------------------------------------------------
-    # 1. Parse + validate input (Pydantic v2)
+    # 1. Validated input (via decorator)
     # ------------------------------------------------------------------
-    try:
-        data = MarkPaymentInput.model_validate(event)
-    except ValidationError as exc:
-        raise AppError(400, "INVALID_INPUT", str(exc)) from exc
 
     # ------------------------------------------------------------------
     # 2. Idempotently mark PAID or FAILED
     # ------------------------------------------------------------------
-    if data.verified:
-        applied = payment_repository.mark_paid(_PROVIDER, data.paypal_order_id)
+    if event.verified:
+        applied = payment_repository.mark_paid(_PROVIDER, event.paypal_order_id)
         status = "PAID" if applied else "ALREADY_PAID"
     else:
         applied = payment_repository.mark_failed(
             _PROVIDER,
-            data.paypal_order_id,
+            event.paypal_order_id,
             failure_code=_FAILURE_CODE,
             failure_message=_FAILURE_MESSAGE,
         )
         status = "FAILED" if applied else "ALREADY_FAILED"
 
     return {
-        "order_id": data.order_id,
-        "paypal_order_id": data.paypal_order_id,
+        "order_id": event.order_id,
+        "paypal_order_id": event.paypal_order_id,
         "status": status,
         "applied": applied,
     }

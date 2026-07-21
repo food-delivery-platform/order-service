@@ -469,9 +469,27 @@ FDS-25 snapshot (2026-07-12):
 
 ---
 
+## 2026-07-21 — DeepSeek (deepseek-v4-pro) — FDS-27 extract validated_input decorator
+
+- **Цель:** убрать повторяющийся try/except ValidationError из SM-task handler-ов.
+- **Изменено:**
+  - `src/shared/validation.py` (новый) — декоратор `validated_input(model)`:
+    валидирует event через Pydantic, передаёт обработанную модель в handler,
+    при ошибке → AppError(400, "INVALID_INPUT").
+  - `verify_payment/handler.py`, `mark_payment_result/handler.py`,
+    `publish_order_event/handler.py`, `create_payment_session/handler.py` —
+    применён `@validated_input(...)`, удалён inline try/except ValidationError.
+    `mark_payment_result` также потерял неиспользуемый импорт `AppError`.
+  - `paypal_webhook/handler.py` НЕ тронут (другой input shape и INVALID_WEBHOOK_PAYLOAD).
+- **Открыто:** —
+- **Дальше:** commit 3 (PAID vs ALREADY_PAID comment).
+
+---
+
 ## Лента
 
 - 2026-07-21 [DeepSeek/deepseek-v4-pro] FDS-27: document all API endpoints and Step Functions steps in readme.md
+- 2026-07-21 [DeepSeek/deepseek-v4-pro] FDS-27: extract input validation into a decorator (validated_input)
 - 2026-07-21 [DeepSeek/deepseek-v4-pro] FDS-27: stricter shared PayPal-ID format validator (validators.py)
 - 2026-07-19 [DeepSeek/deepseek-v4-pro] FDS-27: paypal_webhook starts payment-confirmation SM + per-lambda env vars in CI
 - 2026-07-19 [GLM/glm-5.2] FDS-27 P2-C13: deploy part-2 lambdas and payment-confirmation state machine
