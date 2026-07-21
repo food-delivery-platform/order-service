@@ -432,8 +432,20 @@ FDS-25 snapshot (2026-07-12):
 
 ---
 
+## 2026-07-21 — DeepSeek (deepseek-v4-pro) — FDS-27 validate order_id as UUID in mark_payment_result
+
+- **Цель:** добавить валидацию order_id как UUID в schema mark_payment_result.
+- **Изменено:**
+  - `src/lambdas/mark_payment_result/schema.py` — добавлен `field_validator("order_id")` с `uuid.UUID(v)`, order_id остаётся str.
+  - `tests/test_mark_payment_result.py` — фикстуры переведены на валидный UUID, добавлены test_valid_uuid_order_id_passes и test_non_uuid_order_id_raises_400.
+- **Открыто:** —
+- **Дальше:** —
+
+---
+
 ## Лента
 
+- 2026-07-21 [DeepSeek/deepseek-v4-pro] FDS-27: validate order_id as UUID in mark_payment_result schema
 - 2026-07-19 [DeepSeek/deepseek-v4-pro] FDS-27: paypal_webhook starts payment-confirmation SM + per-lambda env vars in CI
 - 2026-07-19 [GLM/glm-5.2] FDS-27 P2-C13: deploy part-2 lambdas and payment-confirmation state machine
 - 2026-07-19 [GLM/glm-5.2] FDS-27 P2-C12: wire publish_order_event into payment confirmation state machine

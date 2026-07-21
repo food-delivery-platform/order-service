@@ -6,7 +6,9 @@ marks the payment as PAID or FAILED.
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+import uuid
+
+from pydantic import BaseModel, Field, field_validator
 
 
 class MarkPaymentInput(BaseModel):
@@ -15,3 +17,9 @@ class MarkPaymentInput(BaseModel):
     verified: bool
     order_id: str = Field(..., min_length=1)
     paypal_order_id: str = Field(..., min_length=1)
+
+    @field_validator("order_id")
+    @classmethod
+    def _order_id_is_uuid(cls, v: str) -> str:
+        uuid.UUID(v)  # raises ValueError if not a valid UUID
+        return v

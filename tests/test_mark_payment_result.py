@@ -17,15 +17,17 @@ from src.shared.errors.app_error import AppError
 # Helpers
 # ---------------------------------------------------------------------------
 
+_VALID_UUID = "550e8400-e29b-41d4-a716-446655440000"
+
 _VALID_EVENT_VERIFIED = {
     "verified": True,
-    "order_id": "ord-42",
+    "order_id": _VALID_UUID,
     "paypal_order_id": "PP-42",
 }
 
 _VALID_EVENT_NOT_VERIFIED = {
     "verified": False,
-    "order_id": "ord-42",
+    "order_id": _VALID_UUID,
     "paypal_order_id": "PP-42",
 }
 
@@ -42,7 +44,7 @@ def test_verified_true_mark_paid_succeeds(mock_mark_paid):
     result = handler(_VALID_EVENT_VERIFIED, None)
 
     assert result == {
-        "order_id": "ord-42",
+        "order_id": _VALID_UUID,
         "paypal_order_id": "PP-42",
         "status": "PAID",
         "applied": True,
@@ -64,7 +66,7 @@ def test_verified_true_already_paid(mock_mark_paid):
 
     assert result["status"] == "ALREADY_PAID"
     assert result["applied"] is False
-    assert result["order_id"] == "ord-42"
+    assert result["order_id"] == _VALID_UUID
     assert result["paypal_order_id"] == "PP-42"
 
 
@@ -80,7 +82,7 @@ def test_verified_false_mark_failed_succeeds(mock_mark_failed):
     result = handler(_VALID_EVENT_NOT_VERIFIED, None)
 
     assert result == {
-        "order_id": "ord-42",
+        "order_id": _VALID_UUID,
         "paypal_order_id": "PP-42",
         "status": "FAILED",
         "applied": True,
@@ -113,8 +115,44 @@ def test_empty_paypal_order_id_raises_400():
     """Empty string for paypal_order_id → AppError(400, INVALID_INPUT)."""
     bad_event = {
         "verified": True,
-        "order_id": "ord-1",
+        "order_id": _VALID_UUID,
         "paypal_order_id": "",
+    }
+
+    with pytest.raises(AppError) as exc_info:
+        handler(bad_event, None)
+
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.code == "INVALID_INPUT"
+
+
+# ---------------------------------------------------------------------------
+# Test 6: valid UUID order_id → passes
+# ---------------------------------------------------------------------------
+
+
+@patch("src.lambdas.mark_payment_result.handler.payment_repository.mark_paid")
+def test_valid_uuid_order_id_passes(mock_mark_paid):
+    """A valid UUID order_id is accepted — validation does not reject it."""
+    mock_mark_paid.return_value = True
+
+    result = handler(_VALID_EVENT_VERIFIED, None)
+
+    assert result["order_id"] == _VALID_UUID
+    assert result["status"] == "PAID"
+
+
+# ---------------------------------------------------------------------------
+# Test 7: non-UUID order_id → AppError(400, INVALID_INPUT)
+# ---------------------------------------------------------------------------
+
+
+def test_non_uuid_order_id_raises_400():
+    """A non-UUID order_id like 'not-a-uuid' → AppError(400, INVALID_INPUT)."""
+    bad_event = {
+        "verified": True,
+        "order_id": "not-a-uuid",
+        "paypal_order_id": "PP-42",
     }
 
     with pytest.raises(AppError) as exc_info:
