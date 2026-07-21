@@ -38,6 +38,20 @@ jobs:
           set -euo pipefail
           python scripts/package_lambdas.py
 
+      - name: Publish Lambda Layer
+        id: layer
+        run: |
+          set -euo pipefail
+          LAYER_ARN=$(aws lambda publish-layer-version \
+            --layer-name order-service-deps \
+            --description "Shared runtime deps (pydantic, sqlalchemy, supabase, psycopg, httpx)" \
+            --zip-file fileb://build/layer.zip \
+            --compatible-runtimes python3.12 \
+            --compatible-architectures x86_64 \
+            --query 'LayerVersionArn' --output text --no-cli-pager)
+          echo "Published layer: ${LAYER_ARN}"
+          echo "layer_arn=${LAYER_ARN}" >> "${GITHUB_OUTPUT}"
+
       - name: Deploy Lambdas
         id: deploy-lambdas
         run: |
@@ -45,6 +59,7 @@ jobs:
 
           DEPLOYABLE=("validate_order" "resolve_delivery_address" "create_order_step" "create_payment_session" "paypal_webhook" "verify_payment" "mark_payment_result" "publish_order_event")
           ROLE_ARN="${{ secrets.LAMBDA_EXECUTION_ROLE_ARN }}"
+          LAYER_ARN="${{ steps.layer.outputs.layer_arn }}"
 
           # Init summary file for created-vs-updated tracking
           SUMMARY_FILE="deploy-summary.txt"
@@ -103,6 +118,7 @@ jobs:
             aws lambda update-function-configuration \
               --function-name "${func}" \
               --environment "{\"Variables\": ${MERGED_VARS}}" \
+              --layers "${LAYER_ARN}" \
               --no-cli-pager
 
             echo "${func}: ${ACTION}" >> "${SUMMARY_FILE}"

@@ -515,9 +515,26 @@ FDS-25 snapshot (2026-07-12):
 
 ---
 
+## 2026-07-21 — DeepSeek (deepseek-v4-pro) — FDS-29 deps as shared Lambda Layer
+
+- **Цель:** перестать бандлить runtime-зависимости в каждый lambda zip; деплоить
+  deps один раз как Lambda Layer, а function zips сделать src/-only.
+- **Изменено:**
+  - `scripts/package_lambdas.py` — полностью переписан: `build_layer()` создаёт
+    `build/layer.zip` (deps под `python/` для Lambda Layer), `package_lambda()`
+    пакует только `src/` дерево (без deps). Добавлен флаг `--layer` для сборки
+    только слоя.
+  - `.github/workflows/deploy-step-functions.yml` — новый шаг "Publish Lambda
+    Layer" между Package и Deploy Lambdas; `LAYER_ARN` передаётся в
+    `update-function-configuration` через `--layers`.
+- **Открыто:** —
+- **Дальше:** —
+
+---
+
 ## Лента
 
-- 2026-07-21 [DeepSeek/deepseek-v4-pro] FDS-28: lambda deployment zips now bundle runtime dependencies (fixes runtime ImportModuleError: No module named 'pydantic')
+- 2026-07-21 [DeepSeek/deepseek-v4-pro] FDS-29: deps moved from per-function zips to a shared Lambda Layer (FDS-29-lambda-layer)
 - 2026-07-21 [DeepSeek/deepseek-v4-pro] FDS-27: native UUID order_id type, serialize as str at JSON boundaries
 - 2026-07-21 [DeepSeek/deepseek-v4-pro] FDS-27: document all API endpoints and Step Functions steps in readme.md
 - 2026-07-21 [DeepSeek/deepseek-v4-pro] FDS-27: explain PAID vs ALREADY_PAID grouping
