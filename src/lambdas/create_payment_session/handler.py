@@ -19,29 +19,24 @@ from __future__ import annotations
 
 import logging
 
-from pydantic import ValidationError
-
 from src.lambdas.create_payment_session.schema import CreatePaymentSessionInput
 from src.shared.errors.app_error import AppError
 from src.shared.payments import paypal_client
 from src.shared.payments import payment_repository
 from src.shared.payments.models import PaymentStatus
+from src.shared.validation import validated_input
 
 logger = logging.getLogger(__name__)
 
 
+@validated_input(CreatePaymentSessionInput)
 def handler(event, context=None):
     # ------------------------------------------------------------------
-    # 1. Parse + validate input (Pydantic v2)
+    # 1. Validated input (via decorator)
     # ------------------------------------------------------------------
-    try:
-        data = CreatePaymentSessionInput.model_validate(event)
-    except ValidationError as exc:
-        raise AppError(400, "INVALID_INPUT", str(exc)) from exc
-
-    order_id = data.order_id
-    amount = data.amount
-    currency = data.currency
+    order_id = event.order_id
+    amount = event.amount
+    currency = event.currency
 
     # ------------------------------------------------------------------
     # 2. Create PayPal checkout order

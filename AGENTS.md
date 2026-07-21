@@ -260,6 +260,53 @@ FDS-25 snapshot (2026-07-12):
 
 ---
 
+## 2026-07-18 — DeepSeek (deepseek-v4-pro) — FDS-27 P2-C6 paypal_webhook lambda
+
+- **Цель:** создать Lambda для приёма и верификации PayPal webhook-уведомлений.
+- **Изменено:**
+  - `src/lambdas/paypal_webhook/schema.py` (новый) — Pydantic v2 модели WebhookBody / WebhookResource.
+  - `src/lambdas/paypal_webhook/handler.py` (новый) — Lambda-хендлер: извлечение PayPal-заголовков из API Gateway event, верификация подписи через существующий PayPalClient.verify_webhook_signature, парсинг и валидация тела, нормализация.
+  - `tests/test_paypal_webhook.py` (новый) — 7 тестов: валидная подпись, невалидная подпись, malformed body (missing event_type, missing resource, not JSON), multiValueHeaders, missing body.
+- **Открыто:** —
+- **Дальше:** добавить paypal_webhook в package_lambdas.py DEPLOYABLE; создать второй state machine для обработки webhook-событий.
+
+---
+
+## 2026-07-18 — DeepSeek (deepseek-v4-pro) — FDS-27 P2-C8 verify_payment lambda
+
+- **Цель:** создать Lambda для сверки PayPal-платежа с сохранённым заказом.
+- **Изменено:**
+  - `src/lambdas/verify_payment/schema.py` (новый) — Pydantic v2 модель VerifyPaymentInput (paypal_order_id, event_type).
+  - `src/lambdas/verify_payment/handler.py` (новый) — Lambda-хендлер: поиск payment_session через payment_repository.get_by_provider_ref, запрос PayPal через paypal_client.get_order, сверка status=="COMPLETED" + amount/currency (Decimal).
+  - `tests/test_verify_payment.py` (новый) — 4 теста: match → verified=True, amount mismatch, currency mismatch, unknown provider_ref → AppError(404).
+- **Открыто:** —
+- **Дальше:** добавить verify_payment как шаг во второй state machine; реализовать mark_paid после успешной верификации.
+
+---
+
+## 2026-07-18 — DeepSeek (deepseek-v4-pro) — FDS-27 P2-C9 mark_payment_result lambda
+
+- **Цель:** создать Lambda для идемпотентного сохранения результата верификации (PAID/FAILED).
+- **Изменено:**
+  - `src/lambdas/mark_payment_result/schema.py` (новый) — Pydantic v2 модель MarkPaymentInput (verified, order_id, paypal_order_id).
+  - `src/lambdas/mark_payment_result/handler.py` (новый) — Lambda-хендлер: по флагу verified вызывает атомарный payment_repository.mark_paid или mark_failed, возвращает статус PAID/ALREADY_PAID/FAILED/ALREADY_FAILED.
+  - `tests/test_mark_payment_result.py` (новый) — 5 тестов: verified=True → PAID, already PAID → ALREADY_PAID, verified=False → FAILED, missing field → 400, empty paypal_order_id → 400.
+- **Открыто:** —
+- **Дальше:** добавить mark_payment_result как шаг во второй state machine.
+
+---
+
+## 2026-07-18 — DeepSeek (deepseek-v4-pro) — FDS-27 P2-C10 payment confirmation state machine
+
+- **Цель:** создать ASL-определение второго state machine (SM#2), связывающее webhook → verify → mark → Choice (PAID/Failed).
+- **Изменено:**
+  - `orchestration/payment-confirmation-state-machine.asl.json` (новый) — ASL: VerifyPayment → MarkPaymentResult → PaymentResultChoice → PaymentSucceeded/PaymentFailed; Catch-блоки для VerificationFailed/MarkFailed.
+  - `tests/test_payment_confirmation_asl.py` (новый) — 4 структурных теста: валидный JSON, StartAt в States, все Next/Default/Choice цели существуют, Task Resource содержит `function:` плейсхолдеры.
+- **Открыто:** —
+- **Дальше:** добавить verify_payment + mark_payment_result в DEPLOYABLE + deploy workflow; интегрировать SM#2 в CI/CD.
+
+---
+
 ## 2026-07-19 — DeepSeek (deepseek-v4-pro) — FDS-25 hotfix: Lambda deploy waiter
 
 - **Цель:** исправить ResourceConflictException при деплое — `update-function-configuration`
@@ -272,9 +319,218 @@ FDS-25 snapshot (2026-07-12):
 
 ---
 
+## 2026-07-19 — GLM (glm-5.2) — FDS-27 P2-C12 wire publish_order_event into SM#2
+
+- **Цель:** встроить шаг `PublishOrderEvent` во вторую state machine (SM#2)
+  между `MarkPaymentResult` и `PaymentResultChoice`, чтобы доменное событие
+  `order.paid` / `order.payment_failed` эмитилось в EventBridge после фиксации
+  результата платежа.
+- **Изменено:**
+  - `orchestration/payment-confirmation-state-machine.asl.json`:
+    - Все Task `Resource` нормализованы к bare-форме `function:<name>`
+      (`verify_payment`, `mark_payment_result`, `publish_order_event`) — убран
+      `arn:aws:lambda:...:` префикс для консистентности с part-1 ASL.
+    - `MarkPaymentResult.Next` изменён с `PaymentResultChoice` на `PublishOrderEvent`.
+    - Добавлен новый Task-стейт `PublishOrderEvent`: Parameters из `$.result.*`,
+      `ResultPath: $.published`, `Next: PaymentResultChoice`, `Catch → PublishFailed`.
+      Choice по-прежнему читает `$.result.status` (не `$.published`) — коллизии
+      ResultPath нет.
+    - Добавлен терминальный Fail-стейт `PublishFailed` (`Error: PublishFailed`,
+      `Cause: publish_order_event raised`).
+    - Обновлён top-level `Comment` (упомянут publish step).
+  - `tests/test_payment_confirmation_asl.py`: `function:publish_order_event` добавлен
+    в `EXPECTED_FUNCTION_RESOURCES`; assertion кол-ва Task-стейтов поднято с 2 до 3;
+    обновлён module docstring (P2-C10 / P2-C12).
+- **Открыто:** deploy-workflow (`scripts/package_lambdas.py` DEPLOYABLE +
+  `.github/workflows/deploy-step-functions.yml`) для C6/C8/C9/C11 всё ещё не обновлён —
+  отдельная задача интеграции (лямбды не пакуются/не деплоятся).
+- **Дальше:** добавить publish_order_event (и C6/C8/C9) в DEPLOYABLE + deploy workflow;
+  задокументировать `EVENT_BUS_NAME` + IAM `events:PutEvents` в `docs/deployment.md`.
+
+---
+
+## 2026-07-19 — GLM (glm-5.2) — FDS-27 P2-C11 publish_order_event lambda
+
+- **Цель:** добавить Lambda, которая после фиксации результата платежа (C9)
+  публикует доменное событие (`order.paid` / `order.payment_failed`) в EventBridge,
+  чтобы downstream-сервисы (Delivery, Notifications, Analytics) могли отреагировать.
+- **Изменено:**
+  - `src/shared/events/event_publisher.py` (новый) — тонкая обёртка над
+    `boto3.client("events").put_events`: клиент создаётся внутри `EventPublisher.__init__`
+    (lazy import boto3), фабрика `get_event_publisher()` — test-friendly (пэчится в тестах).
+    `get_bus_name()` читает `EVENT_BUS_NAME` из секрета first, env second, default `"default"`
+    (паттерн как в `paypal_client._get_config`). `put_event` бросает `EventPublishError`
+    при ошибке boto3 или при `ErrorCode` в ответе.
+  - `src/shared/events/__init__.py` (новый) — пустой маркер пакета.
+  - `src/lambdas/publish_order_event/schema.py` (новый) — Pydantic v2 `PublishInput`
+    (order_id, paypal_order_id, status — все `min_length=1`).
+  - `src/lambdas/publish_order_event/handler.py` (новый) — Lambda-хендлер: валидация
+    входа через Pydantic → `AppError(400, "INVALID_INPUT")`; маппинг
+    `status in {"PAID","ALREADY_PAID"}` → `order.paid`, иначе `order.payment_failed`;
+    публикация через `event_publisher`; ошибка публикации → `AppError(500, "EVENT_PUBLISH_FAILED")`.
+  - `src/lambdas/publish_order_event/__init__.py` (новый) — пустой маркер.
+  - `tests/test_publish_order_event.py` (новый) — 7 hermetic-тестов: PAID → order.paid
+    (с проверкой call_args), FAILED → order.payment_failed, ALREADY_PAID → order.paid,
+    ALREADY_FAILED → order.payment_failed, missing order_id → 400, empty status → 400,
+    publish failure → 500. Все AWS-вызовы замоканы (`get_event_publisher` + `get_bus_name`).
+- **Открыто:** `publish_order_event` ещё не добавлен в `DEPLOYABLE` (`scripts/package_lambdas.py`)
+  и в deploy-workflow — отдельная задача интеграции (как для C6/C8/C9/C10).
+- **Дальше:** добавить publish_order_event (и C6/C8/C9/C10) в `DEPLOYABLE` + deploy workflow;
+  добавить шаг PublishOrderEvent в payment-confirmation state machine после MarkPaymentResult.
+
+---
+
+## 2026-07-19 — GLM (glm-5.2) — FDS-27 P2-C13 wire part 2 into deploy pipeline
+
+- **Цель:** добавить part-2 лямбды и payment-confirmation state machine в пайплайн деплоя.
+- **Изменено:**
+  - `scripts/package_lambdas.py` — DEPLOYABLE расширен до 8 лямбд: добавлены
+    `create_payment_session` (отсутствовал), `paypal_webhook`, `verify_payment`,
+    `mark_payment_result`, `publish_order_event`.
+  - `.github/workflows/deploy-step-functions.yml`:
+    - Validate ASL: добавлена валидация `payment-confirmation-state-machine.asl.json`.
+    - Deploy Lambdas: DEPLOYABLE-массив расширен до всех 8 лямбд.
+    - Новый шаг "Render + deploy Payment Confirmation SM": резолвинг ARN-ов
+      `verify_payment`/`mark_payment_result`/`publish_order_event`, jq-рендеринг
+      через `walk`, create/update через `${{ secrets.AWS_PAYMENT_SM_NAME }}`.
+    - Deployment Summary: добавлена строка для payment SM.
+- **Открыто:** перед деплоем необходимо добавить GitHub secret `AWS_PAYMENT_SM_NAME`.
+- **Дальше:** задокументировать `EVENT_BUS_NAME` + IAM `events:PutEvents` в `docs/deployment.md`.
+
+---
+
+## 2026-07-19 — DeepSeek (deepseek-v4-pro) — sync main + Lambda deploy wait fix
+
+- **Цель:** синхронизировать `origin/main` в `FDS-27-part2` после мёрж-конфликтов.
+- **Изменено:**
+  - `.github/workflows/deploy-step-functions.yml` — `aws lambda wait` команды уже присутствуют (пришли из main hotfix, авто-мёрж).
+  - `AGENTS.md` — union журнальных записей обеих веток.
+  - `scripts/package_lambdas.py` — сохранена версия HEAD (8 лямбд).
+- **Открыто:** —
+- **Дальше:** —
+
+---
+
+## 2026-07-19 — DeepSeek (deepseek-v4-pro) — FDS-27 paypal_webhook: start SM + deploy per-lambda env vars
+
+- **Цель:** подключить paypal_webhook Lambda к payment-confirmation state machine,
+  вернуть API Gateway proxy response, и расширить CI для per-lambda переменных окружения.
+- **Изменено:**
+  - `paypal_webhook/handler.py` — весь хендлер обёрнут в try/except AppError →
+    `from_app_error`; после верификации подписи и валидации Pydantic читает
+    `PAYMENT_CONFIRMATION_SM_ARN` из env (500 если отсутствует), запускает
+    payment-confirmation SM через `boto3.client("stepfunctions").start_execution`,
+    возвращает `{"statusCode": 200, "body": ...}`.
+  - `tests/test_paypal_webhook.py` — 8 hermetic-тестов (было 7): мокается boto3
+    stepfunctions + verify_webhook_signature; покрыты пути 200/401/500/400×4/multiValueHeaders.
+  - `.github/workflows/deploy-step-functions.yml` — цикл Deploy Lambdas расширен:
+    для `publish_order_event` добавляется `EVENT_BUS_NAME="food-delivery-orders"`,
+    для `paypal_webhook` — `PAYMENT_CONFIRMATION_SM_ARN` из секрета; все функции
+    сохраняют `SERVICE_SECRET_ARN` (merge через jq без перезаписи).
+- **Открыто:** —
+- **Дальше:** —
+
+---
+
+## 2026-07-21 — DeepSeek (deepseek-v4-pro) — FDS-27 validate order_id as UUID in mark_payment_result
+
+- **Цель:** добавить валидацию order_id как UUID в schema mark_payment_result.
+- **Изменено:**
+  - `src/lambdas/mark_payment_result/schema.py` — добавлен `field_validator("order_id")` с `uuid.UUID(v)`, order_id остаётся str.
+  - `tests/test_mark_payment_result.py` — фикстуры переведены на валидный UUID, добавлены test_valid_uuid_order_id_passes и test_non_uuid_order_id_raises_400.
+- **Открыто:** —
+- **Дальше:** —
+
+---
+
+---
+
+## 2026-07-21 — DeepSeek (deepseek-v4-pro) — document API endpoints in readme
+
+- **Цель:** задокументировать все HTTP-эндпоинты и Step Functions-шаги в readme.md.
+- **Изменено:**
+  - `readme.md` — добавлены секции «API Endpoints» (таблица Method | Path | Description) и «Step Functions steps» (order-creation + payment-confirmation).
+- **Открыто:** —
+- **Дальше:** —
+
+---
+
+## 2026-07-21 — DeepSeek (deepseek-v4-pro) — FDS-27 stricter shared PayPal-ID format
+
+- **Цель:** создать общий валидатор формата PayPal ID (не UUID).
+- **Изменено:**
+  - `src/shared/payments/validators.py` (новый) — `PaypalId` (Annotated, min_length=5, max_length=36, alphanumeric pattern).
+  - `mark_payment_result/schema.py`, `verify_payment/schema.py` — `paypal_order_id` → `PaypalId`.
+  - `paypal_webhook/schema.py` — `WebhookResource.id` → `PaypalId`.
+  - Все тестовые фикстуры (`PP-42`, `PAYPAL-ORDER-42`) заменены на реалистичные PayPal ID (`5O190127TN364715T`).
+  - `test_mark_payment_result.py` — добавлены тесты на too-short и non-alphanumeric PayPal ID.
+- **Открыто:** —
+- **Дальше:** commit 2 (extract validated_input decorator).
+
+---
+
+## 2026-07-21 — DeepSeek (deepseek-v4-pro) — FDS-27 extract validated_input decorator
+
+- **Цель:** убрать повторяющийся try/except ValidationError из SM-task handler-ов.
+- **Изменено:**
+  - `src/shared/validation.py` (новый) — декоратор `validated_input(model)`:
+    валидирует event через Pydantic, передаёт обработанную модель в handler,
+    при ошибке → AppError(400, "INVALID_INPUT").
+  - `verify_payment/handler.py`, `mark_payment_result/handler.py`,
+    `publish_order_event/handler.py`, `create_payment_session/handler.py` —
+    применён `@validated_input(...)`, удалён inline try/except ValidationError.
+    `mark_payment_result` также потерял неиспользуемый импорт `AppError`.
+  - `paypal_webhook/handler.py` НЕ тронут (другой input shape и INVALID_WEBHOOK_PAYLOAD).
+- **Открыто:** —
+- **Дальше:** commit 3 (PAID vs ALREADY_PAID comment).
+
+---
+
+## 2026-07-21 — DeepSeek (deepseek-v4-pro) — FDS-27 explain PAID vs ALREADY_PAID grouping
+
+- **Цель:** задокументировать разницу между PAID и ALREADY_PAID для будущих разработчиков.
+- **Изменено:**
+  - `publish_order_event/handler.py` — добавлен комментарий над `_PAID_STATUSES`:
+    PAID = paid by this execution, ALREADY_PAID = paid by earlier retry;
+    оба должны эмитить order.paid.
+- **Открыто:** —
+- **Дальше:** —
+
+---
+
+---
+
+## 2026-07-21 — DeepSeek (deepseek-v4-pro) — FDS-27 native UUID order_id, serialize as str
+
+- **Цель:** заменить кастомный field_validator order_id на нативный тип UUID, конвертировать в str на границах JSON.
+- **Изменено:**
+  - `mark_payment_result/schema.py` — order_id: UUID (был str + field_validator), убраны импорты uuid/field_validator.
+  - `publish_order_event/schema.py` — order_id: UUID (был str + min_length=1).
+  - `mark_payment_result/handler.py` — str(event.order_id) в return dict.
+  - `publish_order_event/handler.py` — str(event.order_id) в EventBridge detail и return dict.
+  - `test_mark_payment_result.py` — добавлен test_result_is_json_serializable (json.dumps + round-trip).
+  - `test_publish_order_event.py` — фикстуры на валидный UUID, добавлены test_non_uuid_order_id_raises_400 и test_result_is_json_serializable.
+- **Открыто:** —
+- **Дальше:** —
+
+---
+
 ## Лента
 
+- 2026-07-21 [DeepSeek/deepseek-v4-pro] FDS-27: native UUID order_id type, serialize as str at JSON boundaries
+- 2026-07-21 [DeepSeek/deepseek-v4-pro] FDS-27: document all API endpoints and Step Functions steps in readme.md
+- 2026-07-21 [DeepSeek/deepseek-v4-pro] FDS-27: explain PAID vs ALREADY_PAID grouping
+- 2026-07-21 [DeepSeek/deepseek-v4-pro] FDS-27: extract input validation into a decorator (validated_input)
+- 2026-07-21 [DeepSeek/deepseek-v4-pro] FDS-27: stricter shared PayPal-ID format validator (validators.py)
+- 2026-07-19 [DeepSeek/deepseek-v4-pro] FDS-27: paypal_webhook starts payment-confirmation SM + per-lambda env vars in CI
+- 2026-07-19 [GLM/glm-5.2] FDS-27 P2-C13: deploy part-2 lambdas and payment-confirmation state machine
+- 2026-07-19 [GLM/glm-5.2] FDS-27 P2-C12: wire publish_order_event into payment confirmation state machine
+- 2026-07-19 [GLM/glm-5.2] FDS-27 P2-C11: add publish_order_event lambda (EventBridge domain events)
 - 2026-07-19 [DeepSeek/deepseek-v4-pro] FDS-25 hotfix: add Lambda waiters after update-function-code / create-function to fix ResourceConflictException
+- 2026-07-18 [DeepSeek/deepseek-v4-pro] FDS-27 P2-C10: add payment confirmation state machine (ASL)
+- 2026-07-18 [DeepSeek/deepseek-v4-pro] FDS-27 P2-C9: add mark_payment_result lambda (idempotent mark_paid/mark_failed)
+- 2026-07-18 [DeepSeek/deepseek-v4-pro] FDS-27 P2-C8: add verify_payment lambda (match amount/currency/status)
+- 2026-07-15 [DeepSeek/deepseek-v4-pro] FDS-27: SM#1 creates PayPal session, returns approval URL
 - 2026-07-15 [DeepSeek/deepseek-v4-pro] FDS-27: add create_payment_session lambda
 - 2026-07-15 [DeepSeek/deepseek-v4-pro] FDS-27: add payments repository (correlation + idempotency)
 - 2026-07-15 [DeepSeek/deepseek-v4-pro] FDS-27: add payment domain models + statuses
@@ -304,3 +560,4 @@ FDS-25 snapshot (2026-07-12):
 - 2026-07-16 [DeepSeek/deepseek-v4-pro] FDS-27: R1–R4 complete (PayPal client encapsulation, DB schema alignment, Pydantic input validation, tests moved to tests/); pushed for review.
 - 2026-07-16 [DeepSeek/deepseek-v4-pro] FDS-27 R5: map CreatePaymentSession input in ASL (subtotal->amount) so SM#1 runs end-to-end
 - 2026-07-16 [DeepSeek/deepseek-v4-pro] FDS-27 R6: drop redundant amount before-validator (Pydantic v2 coerces Decimal natively)
+- 2026-07-18 [DeepSeek/deepseek-v4-pro] FDS-27 P2-C6: add paypal_webhook lambda with signature verification

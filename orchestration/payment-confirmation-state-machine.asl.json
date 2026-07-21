@@ -1,0 +1,97 @@
+{
+  "Comment": "Payment Confirmation State Machine — verify PayPal payment, mark PAID/FAILED idempotently, publish order.* domain event",
+  "StartAt": "VerifyPayment",
+  "States": {
+    "VerifyPayment": {
+      "Type": "Task",
+      "Resource": "function:verify_payment",
+      "Comment": "FDS-27 P2-C8: confirm PayPal order status/amount/currency matches stored session",
+      "ResultPath": "$.verification",
+      "Next": "MarkPaymentResult",
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "VerificationFailed"
+        }
+      ]
+    },
+    "MarkPaymentResult": {
+      "Type": "Task",
+      "Resource": "function:mark_payment_result",
+      "Comment": "FDS-27 P2-C9: idempotently mark PAID or FAILED via atomic conditional UPDATEs",
+      "Parameters": {
+        "verified.$": "$.verification.verified",
+        "order_id.$": "$.verification.order_id",
+        "paypal_order_id.$": "$.verification.paypal_order_id"
+      },
+      "ResultPath": "$.result",
+      "Next": "PublishOrderEvent",
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "MarkFailed"
+        }
+      ]
+    },
+    "PublishOrderEvent": {
+      "Type": "Task",
+      "Resource": "function:publish_order_event",
+      "Comment": "FDS-27 P2-C12: emit order.paid / order.payment_failed to EventBridge after result is persisted",
+      "Parameters": {
+        "order_id.$": "$.result.order_id",
+        "status.$": "$.result.status",
+        "paypal_order_id.$": "$.result.paypal_order_id"
+      },
+      "ResultPath": "$.published",
+      "Next": "PaymentResultChoice",
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "PublishFailed"
+        }
+      ]
+    },
+    "PaymentResultChoice": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.result.status",
+          "StringEquals": "PAID",
+          "Next": "PaymentSucceeded"
+        },
+        {
+          "Variable": "$.result.status",
+          "StringEquals": "ALREADY_PAID",
+          "Next": "PaymentSucceeded"
+        }
+      ],
+      "Default": "PaymentFailed"
+    },
+    "PaymentSucceeded": {
+      "Type": "Succeed"
+    },
+    "PaymentFailed": {
+      "Type": "Fail",
+      "Error": "PaymentFailed",
+      "Cause": "Payment not verified/completed"
+    },
+    "VerificationFailed": {
+      "Type": "Fail",
+      "Error": "VerificationFailed",
+      "Cause": "verify_payment raised"
+    },
+    "MarkFailed": {
+      "Type": "Fail",
+      "Error": "MarkFailed",
+      "Cause": "mark_payment_result raised"
+    },
+    "PublishFailed": {
+      "Type": "Fail",
+      "Error": "PublishFailed",
+      "Cause": "publish_order_event raised"
+    }
+  }
+}

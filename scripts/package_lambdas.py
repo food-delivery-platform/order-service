@@ -21,7 +21,11 @@ DEPLOYABLE = [
     "validate_order",
     "resolve_delivery_address",
     "create_order_step",
-    "create_payment_session",
+    "create_payment_session",  # part 1 (was missing here)
+    "paypal_webhook",  # part 2
+    "verify_payment",  # part 2
+    "mark_payment_result",  # part 2
+    "publish_order_event",  # part 2
 ]
 
 EXCLUDED_SUFFIXES = {".pyc", ".pyo", ".pyd"}
