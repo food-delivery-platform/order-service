@@ -64,11 +64,15 @@ def install_dependencies() -> None:
         "-m",
         "pip",
         "install",
-        "--target", str(DEPS_DIR),
-        "--platform", LAMBDA_PLATFORM,
-        "--python-version", LAMBDA_PYTHON_VERSION,
+        "--target",
+        str(DEPS_DIR),
+        "--platform",
+        LAMBDA_PLATFORM,
+        "--python-version",
+        LAMBDA_PYTHON_VERSION,
         "--only-binary=:all:",
-        "--requirement", str(REQUIREMENTS),
+        "--requirement",
+        str(REQUIREMENTS),
     ]
     print(f"  installing deps: {' '.join(cmd)}")
     subprocess.run(cmd, check=True)
