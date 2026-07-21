@@ -443,8 +443,21 @@ FDS-25 snapshot (2026-07-12):
 
 ---
 
+---
+
+## 2026-07-21 — DeepSeek (deepseek-v4-pro) — document API endpoints in readme
+
+- **Цель:** задокументировать все HTTP-эндпоинты и Step Functions-шаги в readme.md.
+- **Изменено:**
+  - `readme.md` — добавлены секции «API Endpoints» (таблица Method | Path | Description) и «Step Functions steps» (order-creation + payment-confirmation).
+- **Открыто:** —
+- **Дальше:** —
+
+---
+
 ## Лента
 
+- 2026-07-21 [DeepSeek/deepseek-v4-pro] FDS-27: document all API endpoints and Step Functions steps in readme.md
 - 2026-07-21 [DeepSeek/deepseek-v4-pro] FDS-27: validate order_id as UUID in mark_payment_result schema
 - 2026-07-19 [DeepSeek/deepseek-v4-pro] FDS-27: paypal_webhook starts payment-confirmation SM + per-lambda env vars in CI
 - 2026-07-19 [GLM/glm-5.2] FDS-27 P2-C13: deploy part-2 lambdas and payment-confirmation state machine
