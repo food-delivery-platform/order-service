@@ -8,9 +8,11 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
+from src.shared.payments.validators import PaypalId
+
 
 class VerifyPaymentInput(BaseModel):
     """Validated input for the verify_payment Lambda."""
 
-    paypal_order_id: str = Field(..., min_length=1)
+    paypal_order_id: PaypalId
     event_type: str = Field(..., min_length=1)

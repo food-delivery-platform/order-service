@@ -10,13 +10,15 @@ import uuid
 
 from pydantic import BaseModel, Field, field_validator
 
+from src.shared.payments.validators import PaypalId
+
 
 class MarkPaymentInput(BaseModel):
     """Validated input for the mark_payment_result Lambda."""
 
     verified: bool
     order_id: str = Field(..., min_length=1)
-    paypal_order_id: str = Field(..., min_length=1)
+    paypal_order_id: PaypalId
 
     @field_validator("order_id")
     @classmethod

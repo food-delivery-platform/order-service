@@ -20,13 +20,13 @@ from src.shared.events.event_publisher import EventPublishError
 
 _VALID_EVENT_PAID = {
     "order_id": "ord-42",
-    "paypal_order_id": "PP-42",
+    "paypal_order_id": "5O190127TN364715T",
     "status": "PAID",
 }
 
 _VALID_EVENT_FAILED = {
     "order_id": "ord-42",
-    "paypal_order_id": "PP-42",
+    "paypal_order_id": "5O190127TN364715T",
     "status": "FAILED",
 }
 
@@ -71,7 +71,7 @@ def test_paid_status_emits_order_paid(mock_pub, _mock_bus):
         detail_type="order.paid",
         detail={
             "order_id": "ord-42",
-            "paypal_order_id": "PP-42",
+            "paypal_order_id": "5O190127TN364715T",
             "status": "PAID",
         },
     )
@@ -118,7 +118,7 @@ def test_already_paid_emits_order_paid(mock_pub, _mock_bus):
         detail_type="order.paid",
         detail={
             "order_id": "ord-42",
-            "paypal_order_id": "PP-42",
+            "paypal_order_id": "5O190127TN364715T",
             "status": "ALREADY_PAID",
         },
     )
@@ -146,7 +146,7 @@ def test_already_failed_emits_payment_failed(mock_pub, _mock_bus):
         detail_type="order.payment_failed",
         detail={
             "order_id": "ord-42",
-            "paypal_order_id": "PP-42",
+            "paypal_order_id": "5O190127TN364715T",
             "status": "ALREADY_FAILED",
         },
     )
@@ -159,7 +159,7 @@ def test_already_failed_emits_payment_failed(mock_pub, _mock_bus):
 
 def test_missing_order_id_raises_400():
     """Missing ``order_id`` → AppError(400, INVALID_INPUT)."""
-    bad_event = {"paypal_order_id": "PP-1", "status": "PAID"}
+    bad_event = {"paypal_order_id": "5O190127TN364715T", "status": "PAID"}
 
     with pytest.raises(AppError) as exc_info:
         handler(bad_event, None)
@@ -172,7 +172,7 @@ def test_empty_status_raises_400():
     """Empty string for ``status`` → AppError(400, INVALID_INPUT)."""
     bad_event = {
         "order_id": "ord-1",
-        "paypal_order_id": "PP-1",
+        "paypal_order_id": "5O190127TN364715T",
         "status": "",
     }
 

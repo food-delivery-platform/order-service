@@ -28,7 +28,7 @@ _PP_ORDER_COMPLETED = {
 _PAYMENT_MATCH = PaymentSession(
     order_id="ord-42",
     provider="paypal",
-    provider_ref="PP-42",
+    provider_ref="5O190127TN364715T",
     amount=Decimal("50.00"),
     currency="ILS",
     status=PaymentStatus.PENDING,
@@ -36,7 +36,7 @@ _PAYMENT_MATCH = PaymentSession(
 )
 
 _VALID_EVENT = {
-    "paypal_order_id": "PP-42",
+    "paypal_order_id": "5O190127TN364715T",
     "event_type": "CHECKOUT.ORDER.APPROVED",
 }
 
@@ -57,12 +57,12 @@ def test_verified_true_when_all_match(mock_get_order, mock_get_by_ref):
     assert result == {
         "verified": True,
         "order_id": "ord-42",
-        "paypal_order_id": "PP-42",
+        "paypal_order_id": "5O190127TN364715T",
         "amount": "50.00",
         "currency": "ILS",
     }
-    mock_get_by_ref.assert_called_once_with("paypal", "PP-42")
-    mock_get_order.assert_called_once_with("PP-42")
+    mock_get_by_ref.assert_called_once_with("paypal", "5O190127TN364715T")
+    mock_get_order.assert_called_once_with("5O190127TN364715T")
 
 
 # ---------------------------------------------------------------------------
@@ -85,7 +85,7 @@ def test_verified_false_on_amount_mismatch(mock_get_order, mock_get_by_ref):
 
     assert result["verified"] is False
     assert result["order_id"] == "ord-42"
-    assert result["paypal_order_id"] == "PP-42"
+    assert result["paypal_order_id"] == "5O190127TN364715T"
 
 
 # ---------------------------------------------------------------------------

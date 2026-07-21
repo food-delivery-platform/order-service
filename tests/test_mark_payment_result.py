@@ -22,13 +22,13 @@ _VALID_UUID = "550e8400-e29b-41d4-a716-446655440000"
 _VALID_EVENT_VERIFIED = {
     "verified": True,
     "order_id": _VALID_UUID,
-    "paypal_order_id": "PP-42",
+    "paypal_order_id": "5O190127TN364715T",
 }
 
 _VALID_EVENT_NOT_VERIFIED = {
     "verified": False,
     "order_id": _VALID_UUID,
-    "paypal_order_id": "PP-42",
+    "paypal_order_id": "5O190127TN364715T",
 }
 
 
@@ -45,11 +45,11 @@ def test_verified_true_mark_paid_succeeds(mock_mark_paid):
 
     assert result == {
         "order_id": _VALID_UUID,
-        "paypal_order_id": "PP-42",
+        "paypal_order_id": "5O190127TN364715T",
         "status": "PAID",
         "applied": True,
     }
-    mock_mark_paid.assert_called_once_with("paypal", "PP-42")
+    mock_mark_paid.assert_called_once_with("paypal", "5O190127TN364715T")
 
 
 # ---------------------------------------------------------------------------
@@ -67,7 +67,7 @@ def test_verified_true_already_paid(mock_mark_paid):
     assert result["status"] == "ALREADY_PAID"
     assert result["applied"] is False
     assert result["order_id"] == _VALID_UUID
-    assert result["paypal_order_id"] == "PP-42"
+    assert result["paypal_order_id"] == "5O190127TN364715T"
 
 
 # ---------------------------------------------------------------------------
@@ -83,13 +83,13 @@ def test_verified_false_mark_failed_succeeds(mock_mark_failed):
 
     assert result == {
         "order_id": _VALID_UUID,
-        "paypal_order_id": "PP-42",
+        "paypal_order_id": "5O190127TN364715T",
         "status": "FAILED",
         "applied": True,
     }
     mock_mark_failed.assert_called_once_with(
         "paypal",
-        "PP-42",
+        "5O190127TN364715T",
         failure_code="PAYMENT_NOT_VERIFIED",
         failure_message="PayPal payment did not match the order",
     )
@@ -102,7 +102,7 @@ def test_verified_false_mark_failed_succeeds(mock_mark_failed):
 
 def test_missing_required_field_raises_400():
     """Missing ``order_id`` in the event → AppError(400, INVALID_INPUT)."""
-    bad_event = {"verified": True, "paypal_order_id": "PP-42"}
+    bad_event = {"verified": True, "paypal_order_id": "5O190127TN364715T"}
 
     with pytest.raises(AppError) as exc_info:
         handler(bad_event, None)
@@ -147,12 +147,42 @@ def test_valid_uuid_order_id_passes(mock_mark_paid):
 # ---------------------------------------------------------------------------
 
 
+def test_too_short_paypal_id_raises_400():
+    """PayPal ID shorter than 5 chars → AppError(400, INVALID_INPUT)."""
+    bad_event = {
+        "verified": True,
+        "order_id": _VALID_UUID,
+        "paypal_order_id": "AB",
+    }
+
+    with pytest.raises(AppError) as exc_info:
+        handler(bad_event, None)
+
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.code == "INVALID_INPUT"
+
+
+def test_non_alphanumeric_paypal_id_raises_400():
+    """PayPal ID with hyphens (non-alphanumeric) → AppError(400, INVALID_INPUT)."""
+    bad_event = {
+        "verified": True,
+        "order_id": _VALID_UUID,
+        "paypal_order_id": "PP-42",
+    }
+
+    with pytest.raises(AppError) as exc_info:
+        handler(bad_event, None)
+
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.code == "INVALID_INPUT"
+
+
 def test_non_uuid_order_id_raises_400():
     """A non-UUID order_id like 'not-a-uuid' → AppError(400, INVALID_INPUT)."""
     bad_event = {
         "verified": True,
         "order_id": "not-a-uuid",
-        "paypal_order_id": "PP-42",
+        "paypal_order_id": "5O190127TN364715T",
     }
 
     with pytest.raises(AppError) as exc_info:

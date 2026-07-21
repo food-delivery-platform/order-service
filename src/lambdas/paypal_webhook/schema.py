@@ -8,11 +8,13 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
+from src.shared.payments.validators import PaypalId
+
 
 class WebhookResource(BaseModel):
     """The ``resource`` object inside a PayPal webhook notification."""
 
-    id: str = Field(..., min_length=1)
+    id: PaypalId
     status: str = Field(..., min_length=1)
 
 

@@ -455,10 +455,24 @@ FDS-25 snapshot (2026-07-12):
 
 ---
 
+## 2026-07-21 — DeepSeek (deepseek-v4-pro) — FDS-27 stricter shared PayPal-ID format
+
+- **Цель:** создать общий валидатор формата PayPal ID (не UUID).
+- **Изменено:**
+  - `src/shared/payments/validators.py` (новый) — `PaypalId` (Annotated, min_length=5, max_length=36, alphanumeric pattern).
+  - `mark_payment_result/schema.py`, `verify_payment/schema.py` — `paypal_order_id` → `PaypalId`.
+  - `paypal_webhook/schema.py` — `WebhookResource.id` → `PaypalId`.
+  - Все тестовые фикстуры (`PP-42`, `PAYPAL-ORDER-42`) заменены на реалистичные PayPal ID (`5O190127TN364715T`).
+  - `test_mark_payment_result.py` — добавлены тесты на too-short и non-alphanumeric PayPal ID.
+- **Открыто:** —
+- **Дальше:** commit 2 (extract validated_input decorator).
+
+---
+
 ## Лента
 
 - 2026-07-21 [DeepSeek/deepseek-v4-pro] FDS-27: document all API endpoints and Step Functions steps in readme.md
-- 2026-07-21 [DeepSeek/deepseek-v4-pro] FDS-27: validate order_id as UUID in mark_payment_result schema
+- 2026-07-21 [DeepSeek/deepseek-v4-pro] FDS-27: stricter shared PayPal-ID format validator (validators.py)
 - 2026-07-19 [DeepSeek/deepseek-v4-pro] FDS-27: paypal_webhook starts payment-confirmation SM + per-lambda env vars in CI
 - 2026-07-19 [GLM/glm-5.2] FDS-27 P2-C13: deploy part-2 lambdas and payment-confirmation state machine
 - 2026-07-19 [GLM/glm-5.2] FDS-27 P2-C12: wire publish_order_event into payment confirmation state machine

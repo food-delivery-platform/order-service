@@ -31,7 +31,7 @@ _BASE_EVENT = {
         {
             "event_type": "CHECKOUT.ORDER.APPROVED",
             "resource": {
-                "id": "PAYPAL-ORDER-42",
+                "id": "5O190127TN364715T",
                 "status": "APPROVED",
             },
         }
@@ -40,7 +40,7 @@ _BASE_EVENT = {
 
 _NORMALISED = {
     "event_type": "CHECKOUT.ORDER.APPROVED",
-    "paypal_order_id": "PAYPAL-ORDER-42",
+    "paypal_order_id": "5O190127TN364715T",
     "status": "APPROVED",
 }
 
@@ -77,7 +77,7 @@ def test_valid_signature_starts_sm_and_returns_200(mock_boto3_client, _mock_veri
         response = handler(_BASE_EVENT, None)
 
     body = _assert_response(response, 200)
-    assert body == {"status": "accepted", "paypal_order_id": "PAYPAL-ORDER-42"}
+    assert body == {"status": "accepted", "paypal_order_id": "5O190127TN364715T"}
 
     _mock_verify.assert_called_once_with(_BASE_EVENT["headers"], _BASE_EVENT["body"])
     mock_boto3_client.assert_called_once_with("stepfunctions")
@@ -223,7 +223,7 @@ def test_multi_value_headers_are_flattened_and_sm_started(
         response = handler(event, None)
 
     body = _assert_response(response, 200)
-    assert body["paypal_order_id"] == "PAYPAL-ORDER-42"
+    assert body["paypal_order_id"] == "5O190127TN364715T"
 
     # Assert headers were flattened to strings
     _mock_verify.assert_called_once()
