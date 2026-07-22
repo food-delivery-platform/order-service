@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 import os
+from urllib.parse import quote_plus
 
 from sqlalchemy import (
     CHAR,
@@ -21,7 +22,7 @@ from sqlalchemy import (
     create_engine,
     text,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import ENUM, UUID
 from sqlalchemy.pool import NullPool
 
 from src.shared.config.secrets import get_service_secret
@@ -30,6 +31,20 @@ logger = logging.getLogger(__name__)
 
 _engine = None
 metadata = MetaData()
+
+# Postgres already owns the `payment_status` enum type (managed by DB
+# migrations). create_type=False tells SQLAlchemy never to emit CREATE TYPE
+# and to bind values with a ::payment_status cast so INSERT/UPDATE match the
+# real column type.
+payment_status = ENUM(
+    "PENDING",
+    "CUSTOMER_ACTION_REQUIRED",
+    "SUCCEEDED",
+    "FAILED",
+    "REFUNDED",
+    name="payment_status",
+    create_type=False,
+)
 
 # ---------------------------------------------------------------------------
 # payments table — exact schema match
@@ -50,7 +65,7 @@ payments_table = Table(
     Column("idempotency_key", Text, nullable=False, unique=True),
     Column(
         "status",
-        String(50),
+        payment_status,
         nullable=False,
         server_default=text("'PENDING'"),
     ),
@@ -72,19 +87,40 @@ payments_table = Table(
 
 
 def _dsn() -> str:
-    """Build DSN from Secrets Manager first, env var second.
+    """Build the SQLAlchemy DSN.
+
+    Precedence:
+        1. A full DSN via ``database_url`` (secret) or ``DATABASE_URL`` (env).
+        2. Assembled from ``DB_HOST`` / ``DB_USER`` / ``DB_PASS`` /
+           ``DB_NAME`` / ``DB_PORT`` (secret first, plain env second).
 
     Raises:
-        RuntimeError: neither ``database_url`` (secret) nor
-                      ``DATABASE_URL`` (env) is set.
+        RuntimeError: when no usable configuration is found.
     """
     secret = get_service_secret()
-    dsn = secret.get("database_url")
+
+    dsn = secret.get("database_url") or os.environ.get("DATABASE_URL")
     if dsn:
         return dsn
-    dsn = os.environ.get("DATABASE_URL")
-    if dsn:
-        return dsn
+
+    def _cfg(key: str) -> str | None:
+        value = secret.get(key)
+        if value is not None:
+            return value
+        return os.environ.get(key)
+
+    host = _cfg("DB_HOST")
+    user = _cfg("DB_USER")
+    password = _cfg("DB_PASS")
+    name = _cfg("DB_NAME")
+    port = _cfg("DB_PORT") or "5432"
+
+    if host and user and password and name:
+        return (
+            f"postgresql+psycopg://{quote_plus(user)}:{quote_plus(password)}"
+            f"@{host}:{port}/{name}"
+        )
+
     raise RuntimeError("DATABASE_URL not configured")
 
 
