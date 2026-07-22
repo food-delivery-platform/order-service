@@ -26,6 +26,8 @@ python scripts/invoke_local.py create_order events/create-order.json
 
 ## API Endpoints
 
+Machine-readable OpenAPI spec: [`docs/openapi.yaml`](docs/openapi.yaml)
+
 | Method | Path | Description |
 |---|---|---|
 | `POST` | `/api/v1/orders` | Create an order |
