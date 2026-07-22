@@ -48,11 +48,13 @@ The content is organized as follows:
 AGENTS.md
 docs/deployment.md
 docs/FLOW-EXPLAINED.md
+docs/openapi.yaml
 orchestration/order-creation-state-machine.asl.json
 orchestration/payment-confirmation-state-machine.asl.json
 PR_DESCRIPTION_FDS-21.md
 pyproject.toml
 readme.md
+requirements-lambda.txt
 requirements.txt
 scripts/invoke_local.py
 scripts/order_items_rpc.sql
@@ -157,8 +159,10 @@ src/shared/payments/__init__.py
 src/shared/payments/models.py
 src/shared/payments/payment_repository.py
 src/shared/payments/paypal_client.py
+src/shared/payments/validators.py
 src/shared/utils/__init__.py
 src/shared/utils/ids.py
+src/shared/validation.py
 tests/__init__.py
 tests/fixtures/events/create-order-step.json
 tests/fixtures/events/create-order.json
@@ -207,6 +211,110 @@ INTERNAL_SERVICE_JWT=
 </file>
 
 <file path="src/lambdas/__init__.py">
+
+</file>
+
+<file path="src/lambdas/cancel_order/__init__.py">
+
+</file>
+
+<file path="src/lambdas/create_order/__init__.py">
+
+</file>
+
+<file path="src/lambdas/get_customer_orders/__init__.py">
+
+</file>
+
+<file path="src/lambdas/get_order_by_id/__init__.py">
+
+</file>
+
+<file path="src/lambdas/get_order_status/__init__.py">
+
+</file>
+
+<file path="src/lambdas/process_inbound_event/__init__.py">
+
+</file>
+
+<file path="src/modules/__init__.py">
+
+</file>
+
+<file path="src/modules/events/__init__.py">
+
+</file>
+
+<file path="src/modules/events/consumer/__init__.py">
+
+</file>
+
+<file path="src/modules/events/model/__init__.py">
+
+</file>
+
+<file path="src/modules/events/publisher/__init__.py">
+
+</file>
+
+<file path="src/modules/menu/__init__.py">
+
+</file>
+
+<file path="src/modules/menu/client/__init__.py">
+
+</file>
+
+<file path="src/modules/menu/model/__init__.py">
+
+</file>
+
+<file path="src/modules/orchestration/__init__.py">
+
+</file>
+
+<file path="src/modules/orchestration/step_functions/__init__.py">
+
+</file>
+
+<file path="src/modules/orders/__init__.py">
+
+</file>
+
+<file path="src/modules/orders/api/__init__.py">
+
+</file>
+
+<file path="src/modules/orders/model/__init__.py">
+
+</file>
+
+<file path="src/modules/orders/repository/__init__.py">
+
+</file>
+
+<file path="src/modules/orders/service/__init__.py">
+
+</file>
+
+<file path="src/modules/orders/state_machine/__init__.py">
+
+</file>
+
+<file path="src/modules/orders/validation/__init__.py">
+
+</file>
+
+<file path="src/modules/payments/__init__.py">
+
+</file>
+
+<file path="src/modules/payments/client/__init__.py">
+
+</file>
+
+<file path="src/modules/payments/model/__init__.py">
 
 </file>
 
@@ -884,6 +992,229 @@ Order Service — это маленький ресторан с одним по�
 в Supabase, а пароли — в сейфе AWS Secrets Manager.
 </file>
 
+<file path="docs/openapi.yaml">
+openapi: 3.0.3
+info:
+  title: Order Service API
+  version: "1.0.0"
+  description: >
+    REST API of the Food Delivery Order Service (FDS-27).
+    Serverless stack: AWS Lambda + API Gateway (no web framework, so there is
+    no auto-generated Swagger UI).
+    NOTE: createOrder, cancelOrder and getOrderStatus are still stubs and
+    currently return HTTP 501 (NOT_IMPLEMENTED).
+servers:
+  - url: https://kgig1rjcpj.execute-api.us-east-1.amazonaws.com
+    description: API Gateway base URL (add a stage prefix here if one is used)
+paths:
+  /api/v1/orders:
+    post:
+      operationId: createOrder
+      summary: Create an order
+      description: "Not implemented yet - currently returns 501."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateOrderRequest' }
+      responses:
+        '201':
+          description: Order created (planned contract)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrderResponse' }
+        '501':
+          $ref: '#/components/responses/NotImplemented'
+    get:
+      operationId: getCustomerOrders
+      summary: List the current customer's orders
+      parameters:
+        - name: customerId
+          in: query
+          required: false
+          schema: { type: string }
+          description: If omitted, taken from the authorizer claims (sub).
+      responses:
+        '200':
+          description: List of orders
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  orders:
+                    type: array
+                    items: { $ref: '#/components/schemas/OrderResponse' }
+        '400':
+          $ref: '#/components/responses/Error'
+  /api/v1/orders/{orderId}:
+    get:
+      operationId: getOrderById
+      summary: Get one order by id
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      responses:
+        '200':
+          description: The order
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrderResponse' }
+        '404':
+          $ref: '#/components/responses/Error'
+  /api/v1/orders/{orderId}/cancel:
+    post:
+      operationId: cancelOrder
+      summary: Cancel an order
+      description: "Not implemented yet - currently returns 501."
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CancelOrderRequest' }
+      responses:
+        '200':
+          description: Order cancelled (planned contract)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrderResponse' }
+        '501':
+          $ref: '#/components/responses/NotImplemented'
+  /api/v1/orders/{orderId}/status:
+    get:
+      operationId: getOrderStatus
+      summary: Get order status
+      description: "Not implemented yet - currently returns 501."
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      responses:
+        '200':
+          description: Order status (planned contract)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrderStatusResponse' }
+        '501':
+          $ref: '#/components/responses/NotImplemented'
+  /api/payment/webhook:
+    post:
+      operationId: paypalWebhook
+      summary: Receive PayPal webhook notifications
+      description: >
+        Replace this path with the exact PaypalWebhookPath from the
+        CloudFormation Outputs. Verifies the PayPal signature and then starts
+        the payment-confirmation state machine. Called by PayPal, not by clients.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PaypalWebhookEvent' }
+      responses:
+        '200':
+          description: Accepted
+        '401':
+          description: Invalid webhook signature
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+components:
+  parameters:
+    OrderId:
+      name: orderId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  responses:
+    Error:
+      description: Error
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    NotImplemented:
+      description: Not implemented yet (501)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+  schemas:
+    OrderStatus:
+      type: string
+      enum: [CREATED, PENDING_PAYMENT, PAID, READY, PICKED_UP, DELIVERED, PAYMENT_FAILED, CANCELLED, FAILED]
+    CreateOrderItem:
+      type: object
+      required: [menuItemId, quantity]
+      properties:
+        menuItemId: { type: string }
+        quantity: { type: integer, minimum: 1 }
+    DeliveryAddress:
+      type: object
+      required: [street, city, postalCode]
+      properties:
+        street: { type: string }
+        city: { type: string }
+        postalCode: { type: string }
+        latitude: { type: number, nullable: true }
+        longitude: { type: number, nullable: true }
+        notes: { type: string, nullable: true }
+    CreateOrderRequest:
+      type: object
+      required: [customerId, restaurantId, items, deliveryAddress]
+      properties:
+        customerId: { type: string }
+        restaurantId: { type: string }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/CreateOrderItem' }
+        deliveryAddress: { $ref: '#/components/schemas/DeliveryAddress' }
+        deliveryAddressId:
+          type: string
+          description: Optional - if the address already exists.
+    OrderItem:
+      type: object
+      properties:
+        menuItemId: { type: string }
+        name: { type: string }
+        quantity: { type: integer }
+        unitPrice: { type: number }
+        lineTotal: { type: number }
+    OrderResponse:
+      type: object
+      properties:
+        orderId: { type: string, format: uuid }
+        customerId: { type: string }
+        restaurantId: { type: string }
+        status: { $ref: '#/components/schemas/OrderStatus' }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/OrderItem' }
+        total: { type: number }
+        createdAt: { type: string, format: date-time, nullable: true }
+        updatedAt: { type: string, format: date-time, nullable: true }
+    OrderStatusResponse:
+      type: object
+      properties:
+        orderId: { type: string, format: uuid }
+        status: { $ref: '#/components/schemas/OrderStatus' }
+        updatedAt: { type: string, format: date-time, nullable: true }
+    CancelOrderRequest:
+      type: object
+      properties:
+        reason: { type: string }
+    PaypalWebhookEvent:
+      type: object
+      properties:
+        event_type: { type: string, example: PAYMENT.CAPTURE.COMPLETED }
+        resource:
+          type: object
+          properties:
+            id: { type: string }
+            status: { type: string }
+    ErrorResponse:
+      type: object
+      properties:
+        code: { type: string }
+        message: { type: string }
+</file>
+
 <file path="PR_DESCRIPTION_FDS-21.md">
 # PR Description — FDS-21: order validation and read APIs
 
@@ -969,8 +1300,12 @@ pythonpath = ["."]
 testpaths = ["tests"]
 </file>
 
-<file path="src/lambdas/cancel_order/__init__.py">
-
+<file path="requirements-lambda.txt">
+httpx>=0.27
+supabase>=2.4
+pydantic>=2.6
+sqlalchemy>=2.0
+psycopg[binary]>=3.1
 </file>
 
 <file path="src/lambdas/create_order_step/__init__.py">
@@ -1021,23 +1356,7 @@ class CreateOrderStepEvent(BaseModel):
     validated_items: list[ValidatedItemInput] = Field(min_length=1)
 </file>
 
-<file path="src/lambdas/create_order/__init__.py">
-
-</file>
-
 <file path="src/lambdas/create_payment_session/__init__.py">
-
-</file>
-
-<file path="src/lambdas/get_customer_orders/__init__.py">
-
-</file>
-
-<file path="src/lambdas/get_order_by_id/__init__.py">
-
-</file>
-
-<file path="src/lambdas/get_order_status/__init__.py">
 
 </file>
 
@@ -1045,236 +1364,12 @@ class CreateOrderStepEvent(BaseModel):
 
 </file>
 
-<file path="src/lambdas/mark_payment_result/handler.py">
-"""Step Functions step — persist verification result as PAID or FAILED (FDS-27 P2-C9).
-
-This step runs after ``verify_payment`` and idempotently marks the payment
-as PAID (if verified) or FAILED (if not verified).  Uses the atomic
-``payment_repository.mark_paid`` / ``mark_failed`` which are safe to retry.
-
-Input:
-    ``{ "verified": bool, "order_id": str, "paypal_order_id": str }``
-    — output of verify_payment (C8)
-
-Output:
-    ``{ "order_id": str, "paypal_order_id": str, "status": str, "applied": bool }``
-"""
-
-from __future__ import annotations
-
-import logging
-
-from pydantic import ValidationError
-
-from src.lambdas.mark_payment_result.schema import MarkPaymentInput
-from src.shared.errors.app_error import AppError
-from src.shared.payments import payment_repository
-
-logger = logging.getLogger(__name__)
-
-_PROVIDER = "paypal"
-_FAILURE_CODE = "PAYMENT_NOT_VERIFIED"
-_FAILURE_MESSAGE = "PayPal payment did not match the order"
-
-
-def handler(event, context=None):
-    # ------------------------------------------------------------------
-    # 1. Parse + validate input (Pydantic v2)
-    # ------------------------------------------------------------------
-    try:
-        data = MarkPaymentInput.model_validate(event)
-    except ValidationError as exc:
-        raise AppError(400, "INVALID_INPUT", str(exc)) from exc
-
-    # ------------------------------------------------------------------
-    # 2. Idempotently mark PAID or FAILED
-    # ------------------------------------------------------------------
-    if data.verified:
-        applied = payment_repository.mark_paid(_PROVIDER, data.paypal_order_id)
-        status = "PAID" if applied else "ALREADY_PAID"
-    else:
-        applied = payment_repository.mark_failed(
-            _PROVIDER,
-            data.paypal_order_id,
-            failure_code=_FAILURE_CODE,
-            failure_message=_FAILURE_MESSAGE,
-        )
-        status = "FAILED" if applied else "ALREADY_FAILED"
-
-    return {
-        "order_id": data.order_id,
-        "paypal_order_id": data.paypal_order_id,
-        "status": status,
-        "applied": applied,
-    }
-</file>
-
-<file path="src/lambdas/mark_payment_result/schema.py">
-"""Pydantic models for mark_payment_result input validation (FDS-27 P2-C9).
-
-Validates the input event (output of ``verify_payment``) before the handler
-marks the payment as PAID or FAILED.
-"""
-
-from __future__ import annotations
-
-from pydantic import BaseModel, Field
-
-
-class MarkPaymentInput(BaseModel):
-    """Validated input for the mark_payment_result Lambda."""
-
-    verified: bool
-    order_id: str = Field(..., min_length=1)
-    paypal_order_id: str = Field(..., min_length=1)
-</file>
-
 <file path="src/lambdas/paypal_webhook/__init__.py">
-
-</file>
-
-<file path="src/lambdas/paypal_webhook/schema.py">
-"""Pydantic models for PayPal webhook notification validation (FDS-27 P2-C6).
-
-Validates the parsed JSON body of an incoming PayPal webhook POST before
-the handler normalizes and returns it.
-"""
-
-from __future__ import annotations
-
-from pydantic import BaseModel, Field
-
-
-class WebhookResource(BaseModel):
-    """The ``resource`` object inside a PayPal webhook notification."""
-
-    id: str = Field(..., min_length=1)
-    status: str = Field(..., min_length=1)
-
-
-class WebhookBody(BaseModel):
-    """Validated PayPal webhook notification body.
-
-    Only the fields needed downstream are modelled — PayPal sends many more
-    that are simply ignored.
-    """
-
-    event_type: str = Field(..., min_length=1)
-    resource: WebhookResource
-</file>
-
-<file path="src/lambdas/process_inbound_event/__init__.py">
 
 </file>
 
 <file path="src/lambdas/publish_order_event/__init__.py">
 
-</file>
-
-<file path="src/lambdas/publish_order_event/handler.py">
-"""Step Functions step — publish an order domain event to EventBridge (FDS-27 P2-C11).
-
-This step runs after ``mark_payment_result`` (C9) has persisted the verification
-result. It emits a domain event (``order.paid`` or ``order.payment_failed``) so
-downstream services (Delivery, Notifications, Analytics) can react to the final
-payment outcome.
-
-Input:
-    ``{ "order_id": str, "paypal_order_id": str, "status": str }``
-    — output of mark_payment_result (C9). ``status`` is one of
-    ``PAID`` / ``ALREADY_PAID`` / ``FAILED`` / ``ALREADY_FAILED``.
-
-Output:
-    ``{ "published": bool, "event_name": str, "order_id": str }``
-"""
-
-from __future__ import annotations
-
-import logging
-
-from pydantic import ValidationError
-
-from src.lambdas.publish_order_event.schema import PublishInput
-from src.shared.errors.app_error import AppError
-from src.shared.events import event_publisher
-
-logger = logging.getLogger(__name__)
-
-_PAID_STATUSES = {"PAID", "ALREADY_PAID"}
-_SOURCE = "order-service"
-
-
-def handler(event, context=None):
-    # ------------------------------------------------------------------
-    # 1. Parse + validate input (Pydantic v2)
-    # ------------------------------------------------------------------
-    try:
-        data = PublishInput.model_validate(event)
-    except ValidationError as exc:
-        raise AppError(400, "INVALID_INPUT", str(exc)) from exc
-
-    # ------------------------------------------------------------------
-    # 2. Map persisted status → domain event name
-    # ------------------------------------------------------------------
-    event_name = (
-        "order.paid" if data.status in _PAID_STATUSES else "order.payment_failed"
-    )
-
-    # ------------------------------------------------------------------
-    # 3. Publish to EventBridge
-    # ------------------------------------------------------------------
-    publisher = event_publisher.get_event_publisher()
-    try:
-        publisher.put_event(
-            bus=event_publisher.get_bus_name(),
-            source=_SOURCE,
-            detail_type=event_name,
-            detail={
-                "order_id": data.order_id,
-                "paypal_order_id": data.paypal_order_id,
-                "status": data.status,
-            },
-        )
-    except Exception as exc:
-        logger.exception(
-            "EventBridge put_event failed for order_id=%s event_name=%s",
-            data.order_id,
-            event_name,
-        )
-        raise AppError(
-            500,
-            "EVENT_PUBLISH_FAILED",
-            f"Failed to publish {event_name}: {exc}",
-        ) from exc
-
-    # ------------------------------------------------------------------
-    # 4. Return SM output
-    # ------------------------------------------------------------------
-    return {
-        "published": True,
-        "event_name": event_name,
-        "order_id": data.order_id,
-    }
-</file>
-
-<file path="src/lambdas/publish_order_event/schema.py">
-"""Pydantic models for publish_order_event input validation (FDS-27 P2-C11).
-
-Validates the input event (output of ``mark_payment_result``) before the
-handler emits the domain event to EventBridge.
-"""
-
-from __future__ import annotations
-
-from pydantic import BaseModel, Field
-
-
-class PublishInput(BaseModel):
-    """Validated input for the publish_order_event Lambda."""
-
-    order_id: str = Field(..., min_length=1)
-    paypal_order_id: str = Field(..., min_length=1)
-    status: str = Field(..., min_length=1)
 </file>
 
 <file path="src/lambdas/resolve_delivery_address/__init__.py">
@@ -1380,172 +1475,6 @@ def handler(event, context=None):
 
 </file>
 
-<file path="src/lambdas/verify_payment/handler.py">
-"""Step Functions step — verify a PayPal payment against the stored order (FDS-27 P2-C8).
-
-This step runs after the ``paypal_webhook`` lambda receives a notification.
-It verifies the PayPal order matches the stored payment session by comparing
-status, amount and currency — ensuring the payment is legitimate before
-marking it paid.
-
-Input:
-    ``{ "paypal_order_id": str, "event_type": str }``  — output of paypal_webhook
-
-Output:
-    ``{ "verified": bool, "order_id": str, "paypal_order_id": str, "amount": str, "currency": str }``
-"""
-
-from __future__ import annotations
-
-import logging
-from decimal import Decimal
-
-from pydantic import ValidationError
-
-from src.lambdas.verify_payment.schema import VerifyPaymentInput
-from src.shared.errors.app_error import AppError
-from src.shared.payments import paypal_client
-from src.shared.payments import payment_repository
-
-logger = logging.getLogger(__name__)
-
-
-def handler(event, context=None):
-    # ------------------------------------------------------------------
-    # 1. Parse + validate input (Pydantic v2)
-    # ------------------------------------------------------------------
-    try:
-        data = VerifyPaymentInput.model_validate(event)
-    except ValidationError as exc:
-        raise AppError(400, "INVALID_INPUT", str(exc)) from exc
-
-    paypal_order_id = data.paypal_order_id
-
-    # ------------------------------------------------------------------
-    # 2. Look up the stored payment session
-    # ------------------------------------------------------------------
-    payment = payment_repository.get_by_provider_ref("paypal", paypal_order_id)
-    if payment is None:
-        raise AppError(
-            404,
-            "PAYMENT_NOT_FOUND",
-            f"No payment found for PayPal order {paypal_order_id}",
-        )
-
-    # ------------------------------------------------------------------
-    # 3. Fetch PayPal order details
-    # ------------------------------------------------------------------
-    try:
-        pp_order = paypal_client.get_order(paypal_order_id)
-    except paypal_client.PayPalError:
-        logger.exception(
-            "PayPal get_order failed for paypal_order_id=%s", paypal_order_id
-        )
-        raise
-    except Exception as exc:
-        logger.exception(
-            "PayPal get_order failed for paypal_order_id=%s with unexpected error",
-            paypal_order_id,
-        )
-        raise AppError(
-            500,
-            "PAYPAL_GET_ORDER_FAILED",
-            f"Unexpected error fetching PayPal order: {exc}",
-        ) from exc
-
-    # ------------------------------------------------------------------
-    # 4. Verify: status must be COMPLETED, amount + currency must match
-    # ------------------------------------------------------------------
-    pp_status = pp_order.get("status", "")
-    pp_amount = Decimal(pp_order.get("amount", "0"))
-    pp_currency = pp_order.get("currency", "").upper()
-
-    verified = (
-        pp_status == "COMPLETED"
-        and pp_amount == payment.amount
-        and pp_currency == payment.currency.upper()
-    )
-
-    return {
-        "verified": verified,
-        "order_id": payment.order_id,
-        "paypal_order_id": paypal_order_id,
-        "amount": str(payment.amount),
-        "currency": payment.currency,
-    }
-</file>
-
-<file path="src/lambdas/verify_payment/schema.py">
-"""Pydantic models for verify_payment input validation (FDS-27 P2-C8).
-
-Validates the input event (output of ``paypal_webhook``) before the handler
-verifies the PayPal payment against the stored order.
-"""
-
-from __future__ import annotations
-
-from pydantic import BaseModel, Field
-
-
-class VerifyPaymentInput(BaseModel):
-    """Validated input for the verify_payment Lambda."""
-
-    paypal_order_id: str = Field(..., min_length=1)
-    event_type: str = Field(..., min_length=1)
-</file>
-
-<file path="src/modules/__init__.py">
-
-</file>
-
-<file path="src/modules/events/__init__.py">
-
-</file>
-
-<file path="src/modules/events/consumer/__init__.py">
-
-</file>
-
-<file path="src/modules/events/model/__init__.py">
-
-</file>
-
-<file path="src/modules/events/publisher/__init__.py">
-
-</file>
-
-<file path="src/modules/menu/__init__.py">
-
-</file>
-
-<file path="src/modules/menu/client/__init__.py">
-
-</file>
-
-<file path="src/modules/menu/model/__init__.py">
-
-</file>
-
-<file path="src/modules/orchestration/__init__.py">
-
-</file>
-
-<file path="src/modules/orchestration/step_functions/__init__.py">
-
-</file>
-
-<file path="src/modules/orders/__init__.py">
-
-</file>
-
-<file path="src/modules/orders/api/__init__.py">
-
-</file>
-
-<file path="src/modules/orders/model/__init__.py">
-
-</file>
-
 <file path="src/modules/orders/model/customer_address.py">
 """Customer address stored in the local ``addresses`` table (FDS-25).
 
@@ -1569,10 +1498,6 @@ class CustomerAddress:
     longitude: float | None = None
     notes: str | None = None
     created_at: str | None = None
-</file>
-
-<file path="src/modules/orders/repository/__init__.py">
-
 </file>
 
 <file path="src/modules/orders/repository/address_repository.py">
@@ -1647,30 +1572,6 @@ def get_address(address_id: str) -> CustomerAddress | None:
         notes=rows[0].get("notes"),
         created_at=rows[0].get("created_at"),
     )
-</file>
-
-<file path="src/modules/orders/service/__init__.py">
-
-</file>
-
-<file path="src/modules/orders/state_machine/__init__.py">
-
-</file>
-
-<file path="src/modules/orders/validation/__init__.py">
-
-</file>
-
-<file path="src/modules/payments/__init__.py">
-
-</file>
-
-<file path="src/modules/payments/client/__init__.py">
-
-</file>
-
-<file path="src/modules/payments/model/__init__.py">
-
 </file>
 
 <file path="src/shared/config/secrets.py">
@@ -1961,6 +1862,62 @@ def get_event_publisher() -> EventPublisher:
 
 <file path="src/shared/payments/__init__.py">
 
+</file>
+
+<file path="src/shared/payments/validators.py">
+"""Shared PayPal-ID format validator (FDS-27 part2).
+
+PayPal order/capture IDs are alphanumeric tokens, e.g. ``5O190127TN364715T``.
+They are NOT UUIDs — do not treat them as such.
+"""
+
+from __future__ import annotations
+
+from typing import Annotated
+
+from pydantic import Field
+
+# PayPal order/capture IDs are alphanumeric tokens. Kept permissive
+# (length 5..36, alphanumeric) so we reject junk without rejecting valid
+# PayPal IDs, whose exact format PayPal does not contractually guarantee.
+PaypalId = Annotated[str, Field(min_length=5, max_length=36, pattern=r"^[A-Za-z0-9]+$")]
+</file>
+
+<file path="src/shared/validation.py">
+"""Shared input-validation decorator for Step Functions Lambda handlers (FDS-27 part2).
+
+Wraps a Pydantic ``model_validate`` call so every SM-task handler doesn't
+repeat the same try/except boilerplate.
+"""
+
+from __future__ import annotations
+
+import functools
+
+from pydantic import ValidationError
+
+from src.shared.errors.app_error import AppError
+
+
+def validated_input(model):
+    """Validate the Lambda event against a Pydantic model.
+
+    On success the wrapped handler receives the parsed model instead of the
+    raw event. On failure raises AppError(400, "INVALID_INPUT").
+    """
+
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(event, context=None):
+            try:
+                data = model.model_validate(event)
+            except ValidationError as exc:
+                raise AppError(400, "INVALID_INPUT", str(exc)) from exc
+            return func(data, context)
+
+        return wrapper
+
+    return decorator
 </file>
 
 <file path="tests/__init__.py">
@@ -2441,133 +2398,6 @@ class TestHydrateFromSecret:
             importlib.reload(env_module)
 
         assert env_module.SUPABASE_URL == ""
-</file>
-
-<file path="tests/test_mark_payment_result.py">
-"""Hermetic unit tests for mark_payment_result lambda (FDS-27 P2-C9).
-
-All external dependencies (payment_repository.mark_paid, mark_failed) are
-mocked — no database calls.
-"""
-
-from __future__ import annotations
-
-from unittest.mock import patch
-
-import pytest
-
-from src.lambdas.mark_payment_result.handler import handler
-from src.shared.errors.app_error import AppError
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-_VALID_EVENT_VERIFIED = {
-    "verified": True,
-    "order_id": "ord-42",
-    "paypal_order_id": "PP-42",
-}
-
-_VALID_EVENT_NOT_VERIFIED = {
-    "verified": False,
-    "order_id": "ord-42",
-    "paypal_order_id": "PP-42",
-}
-
-
-# ---------------------------------------------------------------------------
-# Test 1: verified=True + mark_paid succeeds → PAID, applied=True
-# ---------------------------------------------------------------------------
-
-
-@patch("src.lambdas.mark_payment_result.handler.payment_repository.mark_paid")
-def test_verified_true_mark_paid_succeeds(mock_mark_paid):
-    mock_mark_paid.return_value = True
-
-    result = handler(_VALID_EVENT_VERIFIED, None)
-
-    assert result == {
-        "order_id": "ord-42",
-        "paypal_order_id": "PP-42",
-        "status": "PAID",
-        "applied": True,
-    }
-    mock_mark_paid.assert_called_once_with("paypal", "PP-42")
-
-
-# ---------------------------------------------------------------------------
-# Test 2: verified=True but mark_paid returns False → ALREADY_PAID
-# ---------------------------------------------------------------------------
-
-
-@patch("src.lambdas.mark_payment_result.handler.payment_repository.mark_paid")
-def test_verified_true_already_paid(mock_mark_paid):
-    """Already paid (rowcount=0 from mark_paid) → status ALREADY_PAID."""
-    mock_mark_paid.return_value = False
-
-    result = handler(_VALID_EVENT_VERIFIED, None)
-
-    assert result["status"] == "ALREADY_PAID"
-    assert result["applied"] is False
-    assert result["order_id"] == "ord-42"
-    assert result["paypal_order_id"] == "PP-42"
-
-
-# ---------------------------------------------------------------------------
-# Test 3: verified=False → mark_failed called → FAILED, applied=True
-# ---------------------------------------------------------------------------
-
-
-@patch("src.lambdas.mark_payment_result.handler.payment_repository.mark_failed")
-def test_verified_false_mark_failed_succeeds(mock_mark_failed):
-    mock_mark_failed.return_value = True
-
-    result = handler(_VALID_EVENT_NOT_VERIFIED, None)
-
-    assert result == {
-        "order_id": "ord-42",
-        "paypal_order_id": "PP-42",
-        "status": "FAILED",
-        "applied": True,
-    }
-    mock_mark_failed.assert_called_once_with(
-        "paypal",
-        "PP-42",
-        failure_code="PAYMENT_NOT_VERIFIED",
-        failure_message="PayPal payment did not match the order",
-    )
-
-
-# ---------------------------------------------------------------------------
-# Test 4: invalid input → AppError(400)
-# ---------------------------------------------------------------------------
-
-
-def test_missing_required_field_raises_400():
-    """Missing ``order_id`` in the event → AppError(400, INVALID_INPUT)."""
-    bad_event = {"verified": True, "paypal_order_id": "PP-42"}
-
-    with pytest.raises(AppError) as exc_info:
-        handler(bad_event, None)
-
-    assert exc_info.value.status_code == 400
-    assert exc_info.value.code == "INVALID_INPUT"
-
-
-def test_empty_paypal_order_id_raises_400():
-    """Empty string for paypal_order_id → AppError(400, INVALID_INPUT)."""
-    bad_event = {
-        "verified": True,
-        "order_id": "ord-1",
-        "paypal_order_id": "",
-    }
-
-    with pytest.raises(AppError) as exc_info:
-        handler(bad_event, None)
-
-    assert exc_info.value.status_code == 400
-    assert exc_info.value.code == "INVALID_INPUT"
 </file>
 
 <file path="tests/test_payment_models.py">
@@ -3833,211 +3663,6 @@ class TestNon2xxRaisesPayPalError:
             client._get_access_token()
 </file>
 
-<file path="tests/test_publish_order_event.py">
-"""Hermetic unit tests for publish_order_event lambda (FDS-27 P2-C11).
-
-All external dependencies (EventBridge client, bus name resolution) are
-mocked — no real AWS calls.
-"""
-
-from __future__ import annotations
-
-from unittest.mock import MagicMock, patch
-
-import pytest
-
-from src.lambdas.publish_order_event.handler import handler
-from src.shared.errors.app_error import AppError
-from src.shared.events.event_publisher import EventPublishError
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-_VALID_EVENT_PAID = {
-    "order_id": "ord-42",
-    "paypal_order_id": "PP-42",
-    "status": "PAID",
-}
-
-_VALID_EVENT_FAILED = {
-    "order_id": "ord-42",
-    "paypal_order_id": "PP-42",
-    "status": "FAILED",
-}
-
-
-def _make_mock_publisher() -> MagicMock:
-    """Return a MagicMock publisher whose ``put_event`` returns a fake EventId."""
-    pub = MagicMock()
-    pub.put_event.return_value = "evt-1"
-    return pub
-
-
-_PUBLISHER_PATCH = patch(
-    "src.lambdas.publish_order_event.handler.event_publisher.get_event_publisher"
-)
-_BUS_PATCH = patch(
-    "src.lambdas.publish_order_event.handler.event_publisher.get_bus_name",
-    return_value="orders-bus",
-)
-
-
-# ---------------------------------------------------------------------------
-# Test 1: status PAID → event_name == "order.paid", publisher called once
-# ---------------------------------------------------------------------------
-
-
-@_BUS_PATCH
-@_PUBLISHER_PATCH
-def test_paid_status_emits_order_paid(mock_pub, _mock_bus):
-    pub = _make_mock_publisher()
-    mock_pub.return_value = pub
-
-    result = handler(_VALID_EVENT_PAID, None)
-
-    assert result == {
-        "published": True,
-        "event_name": "order.paid",
-        "order_id": "ord-42",
-    }
-    pub.put_event.assert_called_once_with(
-        bus="orders-bus",
-        source="order-service",
-        detail_type="order.paid",
-        detail={
-            "order_id": "ord-42",
-            "paypal_order_id": "PP-42",
-            "status": "PAID",
-        },
-    )
-
-
-# ---------------------------------------------------------------------------
-# Test 2: status FAILED → event_name == "order.payment_failed"
-# ---------------------------------------------------------------------------
-
-
-@_BUS_PATCH
-@_PUBLISHER_PATCH
-def test_failed_status_emits_payment_failed(mock_pub, _mock_bus):
-    pub = _make_mock_publisher()
-    mock_pub.return_value = pub
-
-    result = handler(_VALID_EVENT_FAILED, None)
-
-    assert result["event_name"] == "order.payment_failed"
-    assert result["published"] is True
-    assert result["order_id"] == "ord-42"
-    pub.put_event.assert_called_once()
-    assert pub.put_event.call_args.kwargs["detail_type"] == "order.payment_failed"
-    assert pub.put_event.call_args.kwargs["detail"]["status"] == "FAILED"
-
-
-# ---------------------------------------------------------------------------
-# Test 3: ALREADY_PAID → also mapped to order.paid
-# ---------------------------------------------------------------------------
-
-
-@_BUS_PATCH
-@_PUBLISHER_PATCH
-def test_already_paid_emits_order_paid(mock_pub, _mock_bus):
-    pub = _make_mock_publisher()
-    mock_pub.return_value = pub
-
-    result = handler({**_VALID_EVENT_PAID, "status": "ALREADY_PAID"}, None)
-
-    assert result["event_name"] == "order.paid"
-    pub.put_event.assert_called_once_with(
-        bus="orders-bus",
-        source="order-service",
-        detail_type="order.paid",
-        detail={
-            "order_id": "ord-42",
-            "paypal_order_id": "PP-42",
-            "status": "ALREADY_PAID",
-        },
-    )
-
-
-# ---------------------------------------------------------------------------
-# Test 3b: ALREADY_FAILED → also mapped to order.payment_failed
-# ---------------------------------------------------------------------------
-
-
-@_BUS_PATCH
-@_PUBLISHER_PATCH
-def test_already_failed_emits_payment_failed(mock_pub, _mock_bus):
-    """C9 may emit ALREADY_FAILED — it must still map to order.payment_failed."""
-    pub = _make_mock_publisher()
-    mock_pub.return_value = pub
-
-    result = handler({**_VALID_EVENT_FAILED, "status": "ALREADY_FAILED"}, None)
-
-    assert result["event_name"] == "order.payment_failed"
-    assert result["published"] is True
-    pub.put_event.assert_called_once_with(
-        bus="orders-bus",
-        source="order-service",
-        detail_type="order.payment_failed",
-        detail={
-            "order_id": "ord-42",
-            "paypal_order_id": "PP-42",
-            "status": "ALREADY_FAILED",
-        },
-    )
-
-
-# ---------------------------------------------------------------------------
-# Test 4: invalid input → AppError(400, INVALID_INPUT)
-# ---------------------------------------------------------------------------
-
-
-def test_missing_order_id_raises_400():
-    """Missing ``order_id`` → AppError(400, INVALID_INPUT)."""
-    bad_event = {"paypal_order_id": "PP-1", "status": "PAID"}
-
-    with pytest.raises(AppError) as exc_info:
-        handler(bad_event, None)
-
-    assert exc_info.value.status_code == 400
-    assert exc_info.value.code == "INVALID_INPUT"
-
-
-def test_empty_status_raises_400():
-    """Empty string for ``status`` → AppError(400, INVALID_INPUT)."""
-    bad_event = {
-        "order_id": "ord-1",
-        "paypal_order_id": "PP-1",
-        "status": "",
-    }
-
-    with pytest.raises(AppError) as exc_info:
-        handler(bad_event, None)
-
-    assert exc_info.value.status_code == 400
-    assert exc_info.value.code == "INVALID_INPUT"
-
-
-# ---------------------------------------------------------------------------
-# Test 5: publisher raises EventPublishError → AppError(500, EVENT_PUBLISH_FAILED)
-# ---------------------------------------------------------------------------
-
-
-@_BUS_PATCH
-@_PUBLISHER_PATCH
-def test_publish_failure_raises_500(mock_pub, _mock_bus):
-    pub = MagicMock()
-    pub.put_event.side_effect = EventPublishError("boom")
-    mock_pub.return_value = pub
-
-    with pytest.raises(AppError) as exc_info:
-        handler(_VALID_EVENT_PAID, None)
-
-    assert exc_info.value.status_code == 500
-    assert exc_info.value.code == "EVENT_PUBLISH_FAILED"
-</file>
-
 <file path="tests/test_secrets.py">
 """Unit tests for Secrets Manager runtime loader (FDS-25)."""
 
@@ -4128,133 +3753,6 @@ class TestGetServiceSecret:
             result = secrets.get_service_secret()
 
         assert result == {}
-</file>
-
-<file path="tests/test_verify_payment.py">
-"""Hermetic unit tests for verify_payment lambda (FDS-27 P2-C8).
-
-All external dependencies (paypal_client.get_order, payment_repository) are
-mocked — no network or database calls.
-"""
-
-from __future__ import annotations
-
-from decimal import Decimal
-from unittest.mock import patch
-
-import pytest
-
-from src.lambdas.verify_payment.handler import handler
-from src.shared.errors.app_error import AppError
-from src.shared.payments.models import PaymentSession, PaymentStatus
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-_PP_ORDER_COMPLETED = {
-    "status": "COMPLETED",
-    "amount": "50.00",
-    "currency": "ILS",
-}
-
-_PAYMENT_MATCH = PaymentSession(
-    order_id="ord-42",
-    provider="paypal",
-    provider_ref="PP-42",
-    amount=Decimal("50.00"),
-    currency="ILS",
-    status=PaymentStatus.PENDING,
-    approval_url="https://paypal.com/approve",
-)
-
-_VALID_EVENT = {
-    "paypal_order_id": "PP-42",
-    "event_type": "CHECKOUT.ORDER.APPROVED",
-}
-
-
-# ---------------------------------------------------------------------------
-# Test 1: status COMPLETED + amount/currency match → verified=True
-# ---------------------------------------------------------------------------
-
-
-@patch("src.lambdas.verify_payment.handler.payment_repository.get_by_provider_ref")
-@patch("src.lambdas.verify_payment.handler.paypal_client.get_order")
-def test_verified_true_when_all_match(mock_get_order, mock_get_by_ref):
-    mock_get_by_ref.return_value = _PAYMENT_MATCH
-    mock_get_order.return_value = _PP_ORDER_COMPLETED
-
-    result = handler(_VALID_EVENT, None)
-
-    assert result == {
-        "verified": True,
-        "order_id": "ord-42",
-        "paypal_order_id": "PP-42",
-        "amount": "50.00",
-        "currency": "ILS",
-    }
-    mock_get_by_ref.assert_called_once_with("paypal", "PP-42")
-    mock_get_order.assert_called_once_with("PP-42")
-
-
-# ---------------------------------------------------------------------------
-# Test 2: amount mismatch → verified=False
-# ---------------------------------------------------------------------------
-
-
-@patch("src.lambdas.verify_payment.handler.payment_repository.get_by_provider_ref")
-@patch("src.lambdas.verify_payment.handler.paypal_client.get_order")
-def test_verified_false_on_amount_mismatch(mock_get_order, mock_get_by_ref):
-    mock_get_by_ref.return_value = _PAYMENT_MATCH
-    # PayPal reports a different amount
-    mock_get_order.return_value = {
-        "status": "COMPLETED",
-        "amount": "99.99",
-        "currency": "ILS",
-    }
-
-    result = handler(_VALID_EVENT, None)
-
-    assert result["verified"] is False
-    assert result["order_id"] == "ord-42"
-    assert result["paypal_order_id"] == "PP-42"
-
-
-# ---------------------------------------------------------------------------
-# Test 3: currency mismatch → verified=False
-# ---------------------------------------------------------------------------
-
-
-@patch("src.lambdas.verify_payment.handler.payment_repository.get_by_provider_ref")
-@patch("src.lambdas.verify_payment.handler.paypal_client.get_order")
-def test_verified_false_on_currency_mismatch(mock_get_order, mock_get_by_ref):
-    mock_get_by_ref.return_value = _PAYMENT_MATCH
-    mock_get_order.return_value = {
-        "status": "COMPLETED",
-        "amount": "50.00",
-        "currency": "USD",
-    }
-
-    result = handler(_VALID_EVENT, None)
-
-    assert result["verified"] is False
-
-
-# ---------------------------------------------------------------------------
-# Test 4: unknown provider_ref → AppError(404)
-# ---------------------------------------------------------------------------
-
-
-@patch("src.lambdas.verify_payment.handler.payment_repository.get_by_provider_ref")
-def test_payment_not_found_raises_404(mock_get_by_ref):
-    mock_get_by_ref.return_value = None
-
-    with pytest.raises(AppError) as exc_info:
-        handler(_VALID_EVENT, None)
-
-    assert exc_info.value.status_code == 404
-    assert exc_info.value.code == "PAYMENT_NOT_FOUND"
 </file>
 
 <file path=".gitignore">
@@ -4493,38 +3991,6 @@ in your `.env` / shell as before.
 }
 </file>
 
-<file path="readme.md">
-# order-service
-
-Order Service for the Food Delivery Platform — a set of Python AWS Lambda handlers.
-
-## Structure
-- `src/lambdas/` — Lambda entry points (one folder per handler)
-- `src/shared/` — shared infra: `http`, `errors`, `config`, `aws`, `db`, `utils`
-- `src/modules/` — feature modules (orders, payments, menu, events, orchestration)
-- `events/` — mock API Gateway / SQS events for local testing
-- `scripts/invoke_local.py` — run a handler locally
-
-## Setup
-
-```
-python -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
-```
-
-## Run a handler locally
-
-```
-python scripts/invoke_local.py get_order_by_id events/get-order-by-id.json
-python scripts/invoke_local.py create_order events/create-order.json
-```
-
-## Notes
-- Restaurant `preparing` / `ready` stages are handled on the restaurant frontend (per team decision), not in this service.
-- No shared `PATCH /orders/{orderId}/status` endpoint.
-</file>
-
 <file path="scripts/order_items_rpc.sql">
 -- ============================================================================
 -- upsert_order_with_items(payload JSONB)
@@ -4648,6 +4114,21 @@ END;
 $$;
 </file>
 
+<file path="src/lambdas/cancel_order/handler.py">
+"""Lambda handler - POST /api/v1/orders/{orderId}/cancel (cancel_order).
+
+Stub for FDS-15. Real logic arrives in a later task.
+"""
+
+from src.shared.http import api_response
+
+
+def handler(event, context=None):
+    return api_response.error(
+        501, "NOT_IMPLEMENTED", "cancel_order is not implemented yet"
+    )
+</file>
+
 <file path="src/lambdas/create_order_step/handler.py">
 """Step Functions step — create and persist an order (FDS-24).
 
@@ -4727,6 +4208,21 @@ def handler(event, context=None):
     }
 </file>
 
+<file path="src/lambdas/create_order/handler.py">
+"""Lambda handler - POST /api/v1/orders (create_order).
+
+Stub for FDS-15. Real logic arrives in a later task.
+"""
+
+from src.shared.http import api_response
+
+
+def handler(event, context=None):
+    return api_response.error(
+        501, "NOT_IMPLEMENTED", "create_order is not implemented yet"
+    )
+</file>
+
 <file path="src/lambdas/create_payment_session/schema.py">
 """Pydantic models for CreatePaymentSession input validation (FDS-27 R3).
 
@@ -4751,6 +4247,323 @@ class CreatePaymentSessionInput(BaseModel):
     order_id: str = Field(..., min_length=1)
     amount: Decimal = Field(..., gt=0)
     currency: str = Field(..., min_length=3, max_length=3)
+</file>
+
+<file path="src/lambdas/get_order_status/handler.py">
+"""Lambda handler - GET /api/v1/orders/{orderId}/status (get_order_status).
+
+Stub for FDS-15. Real logic arrives in a later task.
+"""
+
+from src.shared.http import api_response
+
+
+def handler(event, context=None):
+    return api_response.error(
+        501, "NOT_IMPLEMENTED", "get_order_status is not implemented yet"
+    )
+</file>
+
+<file path="src/lambdas/paypal_webhook/schema.py">
+"""Pydantic models for PayPal webhook notification validation (FDS-27 P2-C6).
+
+Validates the parsed JSON body of an incoming PayPal webhook POST before
+the handler normalizes and returns it.
+"""
+
+from __future__ import annotations
+
+from pydantic import BaseModel, Field
+
+from src.shared.payments.validators import PaypalId
+
+
+class WebhookResource(BaseModel):
+    """The ``resource`` object inside a PayPal webhook notification."""
+
+    id: PaypalId
+    status: str = Field(..., min_length=1)
+
+
+class WebhookBody(BaseModel):
+    """Validated PayPal webhook notification body.
+
+    Only the fields needed downstream are modelled — PayPal sends many more
+    that are simply ignored.
+    """
+
+    event_type: str = Field(..., min_length=1)
+    resource: WebhookResource
+</file>
+
+<file path="src/lambdas/process_inbound_event/handler.py">
+"""Lambda handler - SQS consumer for inbound payment/delivery events.
+
+Stub for FDS-15. Event routing logic arrives in a later task.
+"""
+
+
+def handler(event, context=None):
+    records = event.get("Records", [])
+    print(f"Received {len(records)} inbound event record(s)")
+    return {"processed": len(records)}
+</file>
+
+<file path="src/lambdas/publish_order_event/schema.py">
+"""Pydantic models for publish_order_event input validation (FDS-27 P2-C11).
+
+Validates the input event (output of ``mark_payment_result``) before the
+handler emits the domain event to EventBridge.
+"""
+
+from __future__ import annotations
+
+from uuid import UUID
+
+from pydantic import BaseModel, Field
+
+
+class PublishInput(BaseModel):
+    """Validated input for the publish_order_event Lambda."""
+
+    order_id: UUID
+    paypal_order_id: str = Field(..., min_length=1)
+    status: str = Field(..., min_length=1)
+</file>
+
+<file path="src/lambdas/verify_payment/handler.py">
+"""Step Functions step — verify a PayPal payment against the stored order (FDS-27 P2-C8).
+
+This step runs after the ``paypal_webhook`` lambda receives a notification.
+It verifies the PayPal order matches the stored payment session by comparing
+status, amount and currency — ensuring the payment is legitimate before
+marking it paid.
+
+Input:
+    ``{ "paypal_order_id": str, "event_type": str }``  — output of paypal_webhook
+
+Output:
+    ``{ "verified": bool, "order_id": str, "paypal_order_id": str, "amount": str, "currency": str }``
+"""
+
+from __future__ import annotations
+
+import logging
+from decimal import Decimal
+
+from src.lambdas.verify_payment.schema import VerifyPaymentInput
+from src.shared.errors.app_error import AppError
+from src.shared.payments import paypal_client
+from src.shared.payments import payment_repository
+from src.shared.validation import validated_input
+
+logger = logging.getLogger(__name__)
+
+
+@validated_input(VerifyPaymentInput)
+def handler(event, context=None):
+    # ------------------------------------------------------------------
+    # 1. Validated input (via decorator)
+    # ------------------------------------------------------------------
+    paypal_order_id = event.paypal_order_id
+
+    # ------------------------------------------------------------------
+    # 2. Look up the stored payment session
+    # ------------------------------------------------------------------
+    payment = payment_repository.get_by_provider_ref("paypal", paypal_order_id)
+    if payment is None:
+        raise AppError(
+            404,
+            "PAYMENT_NOT_FOUND",
+            f"No payment found for PayPal order {paypal_order_id}",
+        )
+
+    # ------------------------------------------------------------------
+    # 3. Fetch PayPal order details
+    # ------------------------------------------------------------------
+    try:
+        pp_order = paypal_client.get_order(paypal_order_id)
+    except paypal_client.PayPalError:
+        logger.exception(
+            "PayPal get_order failed for paypal_order_id=%s", paypal_order_id
+        )
+        raise
+    except Exception as exc:
+        logger.exception(
+            "PayPal get_order failed for paypal_order_id=%s with unexpected error",
+            paypal_order_id,
+        )
+        raise AppError(
+            500,
+            "PAYPAL_GET_ORDER_FAILED",
+            f"Unexpected error fetching PayPal order: {exc}",
+        ) from exc
+
+    # ------------------------------------------------------------------
+    # 4. Verify: status must be COMPLETED, amount + currency must match
+    # ------------------------------------------------------------------
+    pp_status = pp_order.get("status", "")
+    pp_amount = Decimal(pp_order.get("amount", "0"))
+    pp_currency = pp_order.get("currency", "").upper()
+
+    verified = (
+        pp_status == "COMPLETED"
+        and pp_amount == payment.amount
+        and pp_currency == payment.currency.upper()
+    )
+
+    return {
+        "verified": verified,
+        "order_id": payment.order_id,
+        "paypal_order_id": paypal_order_id,
+        "amount": str(payment.amount),
+        "currency": payment.currency,
+    }
+</file>
+
+<file path="src/lambdas/verify_payment/schema.py">
+"""Pydantic models for verify_payment input validation (FDS-27 P2-C8).
+
+Validates the input event (output of ``paypal_webhook``) before the handler
+verifies the PayPal payment against the stored order.
+"""
+
+from __future__ import annotations
+
+from pydantic import BaseModel, Field
+
+from src.shared.payments.validators import PaypalId
+
+
+class VerifyPaymentInput(BaseModel):
+    """Validated input for the verify_payment Lambda."""
+
+    paypal_order_id: PaypalId
+    event_type: str = Field(..., min_length=1)
+</file>
+
+<file path="src/modules/events/model/order_event.py">
+"""Outbound order.* events published by Order Service to SNS (FDS-16)."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+
+from src.modules.orders.model.order_status import OrderStatus
+
+
+@dataclass
+class OrderEvent:
+    type: str  # e.g. "order.created", "order.paid", "order.cancelled"
+    order_id: str
+    status: OrderStatus
+    occurred_at: str  # ISO-8601 timestamp
+    payload: dict = field(default_factory=dict)
+</file>
+
+<file path="src/modules/events/model/payment_event.py">
+"""Inbound payment.* events consumed from SQS (FDS-16)."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from enum import Enum
+
+
+class PaymentFailureReason(str, Enum):
+    CARD_DECLINED = "CARD_DECLINED"
+    INSUFFICIENT_FUNDS = "INSUFFICIENT_FUNDS"
+    EXPIRED_SESSION = "EXPIRED_SESSION"
+    OTHER = "OTHER"
+
+
+class DeclineType(str, Enum):
+    SOFT = "SOFT"
+    HARD = "HARD"
+
+
+@dataclass
+class PaymentSucceeded:
+    type: str
+    order_id: str
+    occurred_at: str | None = None
+
+
+@dataclass
+class PaymentFailed:
+    type: str
+    order_id: str
+    reason: PaymentFailureReason = PaymentFailureReason.OTHER
+    decline_type: DeclineType | None = None
+    occurred_at: str | None = None
+</file>
+
+<file path="src/modules/menu/model/menu_validation.py">
+"""DTOs for validating a cart against Menu Service (FDS-16)."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+
+
+@dataclass
+class MenuValidationItem:
+    menu_item_id: str
+    quantity: int
+
+
+@dataclass
+class MenuValidationRequest:
+    restaurant_id: str
+    items: list[MenuValidationItem]
+
+
+@dataclass
+class ValidatedMenuItem:
+    menu_item_id: str
+    name: str
+    unit_price: float
+    available: bool
+
+
+@dataclass
+class MenuValidationResult:
+    valid: bool
+    items: list[ValidatedMenuItem] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)
+</file>
+
+<file path="src/modules/orders/model/cancel_reason.py">
+"""Reasons an order can be cancelled or fail (FDS-16)."""
+
+from __future__ import annotations
+
+from enum import Enum
+
+
+class CancelReason(str, Enum):
+    PAYMENT_FAILED = "PAYMENT_FAILED"
+    RESTAURANT_REJECTED = "RESTAURANT_REJECTED"
+    RESTAURANT_TIMEOUT = "RESTAURANT_TIMEOUT"
+    INVALID_ORDER = "INVALID_ORDER"
+    CUSTOMER_CANCELLED = "CUSTOMER_CANCELLED"
+</file>
+
+<file path="src/modules/orders/model/order_status_history.py">
+"""One entry in an order status change history (FDS-16)."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+from src.modules.orders.model.order_status import OrderStatus
+
+
+@dataclass
+class OrderStatusHistoryEntry:
+    status: OrderStatus
+    changed_at: str  # ISO-8601 timestamp
+    reason: str | None = None
 </file>
 
 <file path="src/modules/orders/service/order_create_service.py">
@@ -5726,6 +5539,192 @@ def test_task_resources_are_function_placeholders():
         )
 </file>
 
+<file path="tests/test_verify_payment.py">
+"""Hermetic unit tests for verify_payment lambda (FDS-27 P2-C8).
+
+All external dependencies (paypal_client.get_order, payment_repository) are
+mocked — no network or database calls.
+"""
+
+from __future__ import annotations
+
+from decimal import Decimal
+from unittest.mock import patch
+
+import pytest
+
+from src.lambdas.verify_payment.handler import handler
+from src.shared.errors.app_error import AppError
+from src.shared.payments.models import PaymentSession, PaymentStatus
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+_PP_ORDER_COMPLETED = {
+    "status": "COMPLETED",
+    "amount": "50.00",
+    "currency": "ILS",
+}
+
+_PAYMENT_MATCH = PaymentSession(
+    order_id="ord-42",
+    provider="paypal",
+    provider_ref="5O190127TN364715T",
+    amount=Decimal("50.00"),
+    currency="ILS",
+    status=PaymentStatus.PENDING,
+    approval_url="https://paypal.com/approve",
+)
+
+_VALID_EVENT = {
+    "paypal_order_id": "5O190127TN364715T",
+    "event_type": "CHECKOUT.ORDER.APPROVED",
+}
+
+
+# ---------------------------------------------------------------------------
+# Test 1: status COMPLETED + amount/currency match → verified=True
+# ---------------------------------------------------------------------------
+
+
+@patch("src.lambdas.verify_payment.handler.payment_repository.get_by_provider_ref")
+@patch("src.lambdas.verify_payment.handler.paypal_client.get_order")
+def test_verified_true_when_all_match(mock_get_order, mock_get_by_ref):
+    mock_get_by_ref.return_value = _PAYMENT_MATCH
+    mock_get_order.return_value = _PP_ORDER_COMPLETED
+
+    result = handler(_VALID_EVENT, None)
+
+    assert result == {
+        "verified": True,
+        "order_id": "ord-42",
+        "paypal_order_id": "5O190127TN364715T",
+        "amount": "50.00",
+        "currency": "ILS",
+    }
+    mock_get_by_ref.assert_called_once_with("paypal", "5O190127TN364715T")
+    mock_get_order.assert_called_once_with("5O190127TN364715T")
+
+
+# ---------------------------------------------------------------------------
+# Test 2: amount mismatch → verified=False
+# ---------------------------------------------------------------------------
+
+
+@patch("src.lambdas.verify_payment.handler.payment_repository.get_by_provider_ref")
+@patch("src.lambdas.verify_payment.handler.paypal_client.get_order")
+def test_verified_false_on_amount_mismatch(mock_get_order, mock_get_by_ref):
+    mock_get_by_ref.return_value = _PAYMENT_MATCH
+    # PayPal reports a different amount
+    mock_get_order.return_value = {
+        "status": "COMPLETED",
+        "amount": "99.99",
+        "currency": "ILS",
+    }
+
+    result = handler(_VALID_EVENT, None)
+
+    assert result["verified"] is False
+    assert result["order_id"] == "ord-42"
+    assert result["paypal_order_id"] == "5O190127TN364715T"
+
+
+# ---------------------------------------------------------------------------
+# Test 3: currency mismatch → verified=False
+# ---------------------------------------------------------------------------
+
+
+@patch("src.lambdas.verify_payment.handler.payment_repository.get_by_provider_ref")
+@patch("src.lambdas.verify_payment.handler.paypal_client.get_order")
+def test_verified_false_on_currency_mismatch(mock_get_order, mock_get_by_ref):
+    mock_get_by_ref.return_value = _PAYMENT_MATCH
+    mock_get_order.return_value = {
+        "status": "COMPLETED",
+        "amount": "50.00",
+        "currency": "USD",
+    }
+
+    result = handler(_VALID_EVENT, None)
+
+    assert result["verified"] is False
+
+
+# ---------------------------------------------------------------------------
+# Test 4: unknown provider_ref → AppError(404)
+# ---------------------------------------------------------------------------
+
+
+@patch("src.lambdas.verify_payment.handler.payment_repository.get_by_provider_ref")
+def test_payment_not_found_raises_404(mock_get_by_ref):
+    mock_get_by_ref.return_value = None
+
+    with pytest.raises(AppError) as exc_info:
+        handler(_VALID_EVENT, None)
+
+    assert exc_info.value.status_code == 404
+    assert exc_info.value.code == "PAYMENT_NOT_FOUND"
+</file>
+
+<file path="readme.md">
+# order-service
+
+Order Service for the Food Delivery Platform — a set of Python AWS Lambda handlers.
+
+## Structure
+- `src/lambdas/` — Lambda entry points (one folder per handler)
+- `src/shared/` — shared infra: `http`, `errors`, `config`, `aws`, `db`, `utils`
+- `src/modules/` — feature modules (orders, payments, menu, events, orchestration)
+- `events/` — mock API Gateway / SQS events for local testing
+- `scripts/invoke_local.py` — run a handler locally
+
+## Setup
+
+```
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+## Run a handler locally
+
+```
+python scripts/invoke_local.py get_order_by_id events/get-order-by-id.json
+python scripts/invoke_local.py create_order events/create-order.json
+```
+
+## API Endpoints
+
+Machine-readable OpenAPI spec: [`docs/openapi.yaml`](docs/openapi.yaml)
+
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/api/v1/orders` | Create an order |
+| `GET` | `/api/v1/orders` | List the current customer's orders |
+| `GET` | `/api/v1/orders/{orderId}` | Get one order by id |
+| `POST` | `/api/v1/orders/{orderId}/cancel` | Cancel an order |
+| `GET` | `/api/v1/orders/{orderId}/status` | Get order status |
+| `POST` | `/api/payment…` | Receive PayPal webhook notifications |
+
+> **TODO:** The PayPal webhook path is the CloudFormation output `PaypalWebhookPath`
+> (exact path starts with `/api/payment` — full path not yet resolved from deploy
+> infrastructure).
+
+### Step Functions steps (internal, not HTTP)
+
+These Lambda functions are invoked by AWS Step Functions and are not exposed
+as HTTP endpoints.
+
+| State Machine | Steps (in execution order) |
+|---|---|
+| **order-creation** | `validate_order` → `resolve_delivery_address` → `create_order_step` → `create_payment_session` |
+| **payment-confirmation** | `verify_payment` → `mark_payment_result` → `publish_order_event` |
+
+## Notes
+- Restaurant `preparing` / `ready` stages are handled on the restaurant frontend (per team decision), not in this service.
+- No shared `PATCH /orders/{orderId}/status` endpoint.
+</file>
+
 <file path="requirements.txt">
 boto3>=1.34
 httpx>=0.27
@@ -5736,248 +5735,99 @@ sqlalchemy>=2.0
 psycopg[binary]>=3.1
 </file>
 
-<file path="scripts/package_lambdas.py">
-"""Package Lambda function code into deployment-ready zip archives.
-
-For each function in the DEPLOYABLE list, creates build/<name>.zip containing
-the entire src/ tree so the Lambda runtime can resolve imports like
-``src.lambdas.<name>.handler``, ``src.shared.*``, and ``src.modules.*``.
+<file path="scripts/invoke_local.py">
+"""Invoke a Lambda handler locally.
 
 Usage:
-    python scripts/package_lambdas.py                # package all
-    python scripts/package_lambdas.py create_order_step  # single lambda
+    python scripts/invoke_local.py <handler_name> [event_file.json]
+
+Example:
+    python scripts/invoke_local.py health
+    python scripts/invoke_local.py create_order tests/fixtures/events/create-order.json
 """
 
+import importlib
+import json
+import os
 import sys
-import zipfile
-from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-SRC_DIR = PROJECT_ROOT / "src"
-BUILD_DIR = PROJECT_ROOT / "build"
-
-DEPLOYABLE = [
-    "validate_order",
-    "resolve_delivery_address",
-    "create_order_step",
-    "create_payment_session",  # part 1 (was missing here)
-    "paypal_webhook",  # part 2
-    "verify_payment",  # part 2
-    "mark_payment_result",  # part 2
-    "publish_order_event",  # part 2
-]
-
-EXCLUDED_SUFFIXES = {".pyc", ".pyo", ".pyd"}
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
-def _should_exclude(path: Path) -> bool:
-    """Return True if *path* should be excluded from the zip."""
-    # Skip compiled bytecode
-    if path.suffix in EXCLUDED_SUFFIXES:
-        return True
-    # Skip __pycache__ and hidden directories
-    for part in path.parts:
-        if part.startswith(".") or part == "__pycache__":
-            return True
-    return False
-
-
-def package_lambda(name: str) -> Path:
-    """Create build/<name>.zip with the full src/ tree.
-
-    Returns:
-        Path to the created zip file.
-    """
-    BUILD_DIR.mkdir(exist_ok=True)
-    zip_path = BUILD_DIR / f"{name}.zip"
-
-    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
-        for file in SRC_DIR.rglob("*"):
-            if not file.is_file():
-                continue
-            if _should_exclude(file):
-                continue
-            arcname = str(file.relative_to(PROJECT_ROOT))
-            zf.write(file, arcname)
-
-    print(f"  {name}  ->  {zip_path}  ({zip_path.stat().st_size // 1024} KB)")
-    return zip_path
-
-
-def main() -> None:
-    targets = sys.argv[1:] if len(sys.argv) > 1 else DEPLOYABLE
-
-    # Validate targets
-    for t in targets:
-        if t not in DEPLOYABLE:
-            print(f"Unknown lambda: {t} (allowed: {DEPLOYABLE})", file=sys.stderr)
-            sys.exit(1)
-
-    print(f"Packaging {len(targets)} lambda(s) into {BUILD_DIR}/ ...")
-    for name in targets:
-        try:
-            package_lambda(name)
-        except Exception:
-            print(f"Failed to package {name}", file=sys.stderr)
-            raise
-
-    print("\nDone.")
+def main():
+    if len(sys.argv) < 2:
+        print(__doc__)
+        sys.exit(1)
+    handler_name = sys.argv[1]
+    event = {}
+    if len(sys.argv) > 2:
+        with open(sys.argv[2], encoding="utf-8") as fh:
+            event = json.load(fh)
+    module = importlib.import_module(f"src.lambdas.{handler_name}.handler")
+    print(json.dumps(module.handler(event, None), indent=2, ensure_ascii=False))
 
 
 if __name__ == "__main__":
     main()
 </file>
 
-<file path="src/lambdas/cancel_order/handler.py">
-"""Lambda handler - POST /api/v1/orders/{orderId}/cancel (cancel_order).
+<file path="src/lambdas/mark_payment_result/handler.py">
+"""Step Functions step — persist verification result as PAID or FAILED (FDS-27 P2-C9).
 
-Stub for FDS-15. Real logic arrives in a later task.
-"""
-
-from src.shared.http import api_response
-
-
-def handler(event, context=None):
-    return api_response.error(
-        501, "NOT_IMPLEMENTED", "cancel_order is not implemented yet"
-    )
-</file>
-
-<file path="src/lambdas/create_order/handler.py">
-"""Lambda handler - POST /api/v1/orders (create_order).
-
-Stub for FDS-15. Real logic arrives in a later task.
-"""
-
-from src.shared.http import api_response
-
-
-def handler(event, context=None):
-    return api_response.error(
-        501, "NOT_IMPLEMENTED", "create_order is not implemented yet"
-    )
-</file>
-
-<file path="src/lambdas/create_payment_session/handler.py">
-"""Step Functions step — create a PayPal payment session (FDS-27 R3).
-
-This step runs after the order has been created with status PENDING_PAYMENT.
-It calls PayPal to create a checkout order, persists a PaymentSession row
-(via the payments repository), and returns the PayPal approval URL so the
-state machine can redirect the customer.
+This step runs after ``verify_payment`` and idempotently marks the payment
+as PAID (if verified) or FAILED (if not verified).  Uses the atomic
+``payment_repository.mark_paid`` / ``mark_failed`` which are safe to retry.
 
 Input:
-    { "order_id": str, "amount": <number>, "currency": str }
+    ``{ "verified": bool, "order_id": str, "paypal_order_id": str }``
+    — output of verify_payment (C8)
 
 Output:
-    { "order_id", "provider_ref", "approval_url" }
-
-On any failure the exception is logged and re-raised so the state machine's
-Catch clause can handle it — no error is ever swallowed.
+    ``{ "order_id": str, "paypal_order_id": str, "status": str, "applied": bool }``
 """
 
 from __future__ import annotations
 
 import logging
 
-from pydantic import ValidationError
-
-from src.lambdas.create_payment_session.schema import CreatePaymentSessionInput
-from src.shared.errors.app_error import AppError
-from src.shared.payments import paypal_client
+from src.lambdas.mark_payment_result.schema import MarkPaymentInput
 from src.shared.payments import payment_repository
-from src.shared.payments.models import PaymentStatus
+from src.shared.validation import validated_input
 
 logger = logging.getLogger(__name__)
 
+_PROVIDER = "paypal"
+_FAILURE_CODE = "PAYMENT_NOT_VERIFIED"
+_FAILURE_MESSAGE = "PayPal payment did not match the order"
 
+
+@validated_input(MarkPaymentInput)
 def handler(event, context=None):
     # ------------------------------------------------------------------
-    # 1. Parse + validate input (Pydantic v2)
+    # 1. Validated input (via decorator)
     # ------------------------------------------------------------------
-    try:
-        data = CreatePaymentSessionInput.model_validate(event)
-    except ValidationError as exc:
-        raise AppError(400, "INVALID_INPUT", str(exc)) from exc
-
-    order_id = data.order_id
-    amount = data.amount
-    currency = data.currency
 
     # ------------------------------------------------------------------
-    # 2. Create PayPal checkout order
+    # 2. Idempotently mark PAID or FAILED
     # ------------------------------------------------------------------
-    try:
-        paypal_result = paypal_client.create_order(
-            order_id=order_id,
-            amount=amount,
-            currency=currency,
+    if event.verified:
+        applied = payment_repository.mark_paid(_PROVIDER, event.paypal_order_id)
+        status = "PAID" if applied else "ALREADY_PAID"
+    else:
+        applied = payment_repository.mark_failed(
+            _PROVIDER,
+            event.paypal_order_id,
+            failure_code=_FAILURE_CODE,
+            failure_message=_FAILURE_MESSAGE,
         )
-    except paypal_client.PayPalError:
-        logger.exception("PayPal create_order failed for order_id=%s", order_id)
-        raise
-    except Exception as exc:
-        logger.exception(
-            "PayPal create_order failed for order_id=%s with unexpected error",
-            order_id,
-        )
-        raise AppError(
-            500,
-            "PAYPAL_CREATE_ORDER_FAILED",
-            f"Unexpected error calling PayPal: {exc}",
-        ) from exc
+        status = "FAILED" if applied else "ALREADY_FAILED"
 
-    provider_ref = paypal_result["paypal_order_id"]
-    approval_url = paypal_result["approval_url"]
-
-    # ------------------------------------------------------------------
-    # 3. Persist payment session
-    # ------------------------------------------------------------------
-    try:
-        payment_repository.create_payment(
-            order_id=order_id,
-            provider="paypal",
-            provider_ref=provider_ref,
-            amount=amount,
-            currency=currency,
-            status=PaymentStatus.PENDING,
-            approval_url=approval_url,
-        )
-    except Exception as exc:
-        logger.exception(
-            "create_payment failed for order_id=%s provider_ref=%s",
-            order_id,
-            provider_ref,
-        )
-        raise AppError(
-            500,
-            "PAYMENT_PERSISTENCE_FAILED",
-            f"Failed to persist payment session: {exc}",
-        ) from exc
-
-    # ------------------------------------------------------------------
-    # 4. Return SM output
-    # ------------------------------------------------------------------
     return {
-        "order_id": order_id,
-        "provider_ref": provider_ref,
-        "approval_url": approval_url,
+        "order_id": str(event.order_id),
+        "paypal_order_id": event.paypal_order_id,
+        "status": status,
+        "applied": applied,
     }
-</file>
-
-<file path="src/lambdas/get_order_status/handler.py">
-"""Lambda handler - GET /api/v1/orders/{orderId}/status (get_order_status).
-
-Stub for FDS-15. Real logic arrives in a later task.
-"""
-
-from src.shared.http import api_response
-
-
-def handler(event, context=None):
-    return api_response.error(
-        501, "NOT_IMPLEMENTED", "get_order_status is not implemented yet"
-    )
 </file>
 
 <file path="src/lambdas/paypal_webhook/handler.py">
@@ -6108,75 +5958,6 @@ def handler(event, context=None):
         return from_app_error(err)
 </file>
 
-<file path="src/lambdas/process_inbound_event/handler.py">
-"""Lambda handler - SQS consumer for inbound payment/delivery events.
-
-Stub for FDS-15. Event routing logic arrives in a later task.
-"""
-
-
-def handler(event, context=None):
-    records = event.get("Records", [])
-    print(f"Received {len(records)} inbound event record(s)")
-    return {"processed": len(records)}
-</file>
-
-<file path="src/modules/events/model/order_event.py">
-"""Outbound order.* events published by Order Service to SNS (FDS-16)."""
-
-from __future__ import annotations
-
-from dataclasses import dataclass, field
-
-from src.modules.orders.model.order_status import OrderStatus
-
-
-@dataclass
-class OrderEvent:
-    type: str  # e.g. "order.created", "order.paid", "order.cancelled"
-    order_id: str
-    status: OrderStatus
-    occurred_at: str  # ISO-8601 timestamp
-    payload: dict = field(default_factory=dict)
-</file>
-
-<file path="src/modules/events/model/payment_event.py">
-"""Inbound payment.* events consumed from SQS (FDS-16)."""
-
-from __future__ import annotations
-
-from dataclasses import dataclass
-from enum import Enum
-
-
-class PaymentFailureReason(str, Enum):
-    CARD_DECLINED = "CARD_DECLINED"
-    INSUFFICIENT_FUNDS = "INSUFFICIENT_FUNDS"
-    EXPIRED_SESSION = "EXPIRED_SESSION"
-    OTHER = "OTHER"
-
-
-class DeclineType(str, Enum):
-    SOFT = "SOFT"
-    HARD = "HARD"
-
-
-@dataclass
-class PaymentSucceeded:
-    type: str
-    order_id: str
-    occurred_at: str | None = None
-
-
-@dataclass
-class PaymentFailed:
-    type: str
-    order_id: str
-    reason: PaymentFailureReason = PaymentFailureReason.OTHER
-    decline_type: DeclineType | None = None
-    occurred_at: str | None = None
-</file>
-
 <file path="src/modules/menu/client/menu_service_client.py">
 """HTTP client for Menu Service cart validation (FDS-21).
 
@@ -6271,41 +6052,6 @@ def _to_result(payload: dict) -> MenuValidationResult:
     )
 </file>
 
-<file path="src/modules/menu/model/menu_validation.py">
-"""DTOs for validating a cart against Menu Service (FDS-16)."""
-
-from __future__ import annotations
-
-from dataclasses import dataclass, field
-
-
-@dataclass
-class MenuValidationItem:
-    menu_item_id: str
-    quantity: int
-
-
-@dataclass
-class MenuValidationRequest:
-    restaurant_id: str
-    items: list[MenuValidationItem]
-
-
-@dataclass
-class ValidatedMenuItem:
-    menu_item_id: str
-    name: str
-    unit_price: float
-    available: bool
-
-
-@dataclass
-class MenuValidationResult:
-    valid: bool
-    items: list[ValidatedMenuItem] = field(default_factory=list)
-    errors: list[str] = field(default_factory=list)
-</file>
-
 <file path="src/modules/orchestration/step_functions/post_payment_payload.py">
 """Input payload for the post-payment Step Functions state machine (FDS-16)."""
 
@@ -6337,457 +6083,6 @@ class PrePaymentPayload:
     restaurant_id: str
     amount: float
     items: list[dict] = field(default_factory=list)
-</file>
-
-<file path="src/modules/orders/model/cancel_reason.py">
-"""Reasons an order can be cancelled or fail (FDS-16)."""
-
-from __future__ import annotations
-
-from enum import Enum
-
-
-class CancelReason(str, Enum):
-    PAYMENT_FAILED = "PAYMENT_FAILED"
-    RESTAURANT_REJECTED = "RESTAURANT_REJECTED"
-    RESTAURANT_TIMEOUT = "RESTAURANT_TIMEOUT"
-    INVALID_ORDER = "INVALID_ORDER"
-    CUSTOMER_CANCELLED = "CUSTOMER_CANCELLED"
-</file>
-
-<file path="src/modules/orders/model/order_status_history.py">
-"""One entry in an order status change history (FDS-16)."""
-
-from __future__ import annotations
-
-from dataclasses import dataclass
-
-from src.modules.orders.model.order_status import OrderStatus
-
-
-@dataclass
-class OrderStatusHistoryEntry:
-    status: OrderStatus
-    changed_at: str  # ISO-8601 timestamp
-    reason: str | None = None
-</file>
-
-<file path="src/shared/config/env.py">
-"""Centralized access to environment variables (12-factor config).
-
-Names match the "Required Environment Variables" list in FDS-15.
-Credentials are hydrated from Secrets Manager first, plain env second.
-"""
-
-import os
-
-from src.shared.config.secrets import get_service_secret
-
-
-def get(name: str, default: str | None = None, required: bool = False) -> str | None:
-    value = os.environ.get(name, default)
-    if required and not value:
-        raise RuntimeError(f"Missing required environment variable: {name}")
-    return value
-
-
-def _hydrate(name: str, default: str | None = None) -> str | None:
-    """Return secret value for *name* if available, otherwise env value.
-
-    When SERVICE_SECRET_ARN is unset the secret is empty dict so behaviour
-    falls back to plain env — local dev keeps working unchanged.
-    """
-    secret = get_service_secret()
-    value = secret.get(name)
-    if value is not None:
-        return value
-    return os.environ.get(name, default)
-
-
-AWS_REGION = get("AWS_REGION", "eu-west-1")
-
-SUPABASE_URL = _hydrate("SUPABASE_URL")
-SUPABASE_SERVICE_ROLE_KEY = _hydrate("SUPABASE_SERVICE_ROLE_KEY")
-
-ORDER_STATUS_TABLE_NAME = get("ORDER_STATUS_TABLE_NAME", "order-status-live")
-
-ORDER_EVENTS_TOPIC_ARN = get("ORDER_EVENTS_TOPIC_ARN")
-ORDER_INBOUND_QUEUE_URL = get("ORDER_INBOUND_QUEUE_URL")
-
-ORDER_PRE_PAYMENT_STATE_MACHINE_ARN = get("ORDER_PRE_PAYMENT_STATE_MACHINE_ARN")
-ORDER_POST_PAYMENT_STATE_MACHINE_ARN = get("ORDER_POST_PAYMENT_STATE_MACHINE_ARN")
-
-MENU_SERVICE_BASE_URL = get("MENU_SERVICE_BASE_URL")
-PAYMENT_SERVICE_BASE_URL = get("PAYMENT_SERVICE_BASE_URL")
-INTERNAL_SERVICE_JWT = get("INTERNAL_SERVICE_JWT")
-</file>
-
-<file path="src/shared/payments/models.py">
-"""Payment domain models (FDS-27 R2).
-
-Pydantic models for payment sessions and payment verification results.
-All money amounts use ``Decimal`` — never ``float``.
-"""
-
-from __future__ import annotations
-
-from decimal import Decimal
-from enum import StrEnum
-
-from pydantic import BaseModel, Field
-
-
-class PaymentStatus(StrEnum):
-    """Status of a payment session tracked by Order Service (DB enum)."""
-
-    PENDING = "PENDING"
-    CUSTOMER_ACTION_REQUIRED = "CUSTOMER_ACTION_REQUIRED"
-    SUCCEEDED = "SUCCEEDED"
-    FAILED = "FAILED"
-    REFUNDED = "REFUNDED"
-
-
-class PaymentSession(BaseModel):
-    """A payment session linked to a payment provider order."""
-
-    order_id: str = Field(..., min_length=1, description="Internal order id")
-    provider: str = Field(
-        default="paypal", min_length=1, description="Payment provider"
-    )
-    provider_ref: str = Field(..., min_length=1, description="Provider-side order id")
-    approval_url: str = Field(default="", description="Provider approval/checkout URL")
-    amount: Decimal = Field(..., gt=0, description="Payment amount")
-    currency: str = Field(
-        ..., min_length=3, max_length=3, description="ISO 4217 currency code"
-    )
-    status: PaymentStatus = Field(
-        default=PaymentStatus.PENDING, description="Current session status"
-    )
-
-
-class PaymentVerification(BaseModel):
-    """Result of verifying a payment (after customer approval)."""
-
-    provider: str = Field(
-        default="paypal", min_length=1, description="Payment provider"
-    )
-    provider_ref: str = Field(
-        ..., min_length=1, description="Provider-side order id that was verified"
-    )
-    status: str = Field(
-        ...,
-        min_length=1,
-        description="Provider order status (e.g. APPROVED, COMPLETED)",
-    )
-    amount: Decimal = Field(..., gt=0, description="Captured/approved amount")
-    currency: str = Field(
-        ..., min_length=3, max_length=3, description="ISO 4217 currency code"
-    )
-</file>
-
-<file path="tests/test_paypal_webhook.py">
-"""Hermetic unit tests for paypal_webhook lambda (FDS-27 P2-C6).
-
-All external dependencies (verify_webhook_signature, boto3 stepfunctions)
-are mocked — no network calls.
-"""
-
-from __future__ import annotations
-
-import json
-import os
-from unittest.mock import MagicMock, patch
-
-
-from src.lambdas.paypal_webhook.handler import handler
-
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
-
-_SM_ARN = "arn:aws:states:us-east-1:000000000000:stateMachine:payment-confirmation"
-
-_BASE_EVENT = {
-    "headers": {
-        "paypal-transmission-id": "txn-abc123",
-        "paypal-transmission-time": "2026-07-18T10:00:00Z",
-        "paypal-cert-url": "https://api.paypal.com/v1/notifications/certs/CERT-360",
-        "paypal-auth-algo": "SHA256withRSA",
-        "paypal-transmission-sig": "sig-value",
-    },
-    "body": json.dumps(
-        {
-            "event_type": "CHECKOUT.ORDER.APPROVED",
-            "resource": {
-                "id": "PAYPAL-ORDER-42",
-                "status": "APPROVED",
-            },
-        }
-    ),
-}
-
-_NORMALISED = {
-    "event_type": "CHECKOUT.ORDER.APPROVED",
-    "paypal_order_id": "PAYPAL-ORDER-42",
-    "status": "APPROVED",
-}
-
-
-def _patch_env():
-    """Set PAYMENT_CONFIRMATION_SM_ARN for tests that need it."""
-    return patch.dict(os.environ, {"PAYMENT_CONFIRMATION_SM_ARN": _SM_ARN})
-
-
-def _assert_response(response: dict, expected_status: int):
-    """Assert an API Gateway proxy response has the expected shape and status."""
-    assert isinstance(response, dict)
-    assert "statusCode" in response
-    assert "headers" in response
-    assert "body" in response
-    assert response["statusCode"] == expected_status
-    assert response["headers"]["Content-Type"] == "application/json"
-    body = json.loads(response["body"])
-    return body
-
-
-# ---------------------------------------------------------------------------
-# Test 1: valid signature → starts SM → 200 accepted
-# ---------------------------------------------------------------------------
-
-
-@patch("src.lambdas.paypal_webhook.handler.verify_webhook_signature", return_value=True)
-@patch("src.lambdas.paypal_webhook.handler.boto3.client")
-def test_valid_signature_starts_sm_and_returns_200(mock_boto3_client, _mock_verify):
-    mock_sfn = MagicMock()
-    mock_boto3_client.return_value = mock_sfn
-
-    with _patch_env():
-        response = handler(_BASE_EVENT, None)
-
-    body = _assert_response(response, 200)
-    assert body == {"status": "accepted", "paypal_order_id": "PAYPAL-ORDER-42"}
-
-    _mock_verify.assert_called_once_with(_BASE_EVENT["headers"], _BASE_EVENT["body"])
-    mock_boto3_client.assert_called_once_with("stepfunctions")
-    mock_sfn.start_execution.assert_called_once_with(
-        stateMachineArn=_SM_ARN,
-        input=json.dumps(_NORMALISED),
-    )
-
-
-# ---------------------------------------------------------------------------
-# Test 2: invalid signature → 401
-# ---------------------------------------------------------------------------
-
-
-@patch(
-    "src.lambdas.paypal_webhook.handler.verify_webhook_signature",
-    return_value=False,
-)
-def test_invalid_signature_returns_401(_mock_verify):
-    with _patch_env():
-        response = handler(_BASE_EVENT, None)
-
-    body = _assert_response(response, 401)
-    assert body["error"] == "WEBHOOK_UNVERIFIED"
-
-
-# ---------------------------------------------------------------------------
-# Test 3: missing PAYMENT_CONFIRMATION_SM_ARN → 500
-# ---------------------------------------------------------------------------
-
-
-@patch("src.lambdas.paypal_webhook.handler.verify_webhook_signature", return_value=True)
-def test_missing_sm_arn_returns_500(_mock_verify):
-    with patch.dict(os.environ, {}, clear=True):
-        response = handler(_BASE_EVENT, None)
-
-    body = _assert_response(response, 500)
-    assert body["error"] == "MISSING_SM_ARN"
-
-
-# ---------------------------------------------------------------------------
-# Test 4: missing event_type → 400
-# ---------------------------------------------------------------------------
-
-
-@patch("src.lambdas.paypal_webhook.handler.verify_webhook_signature", return_value=True)
-def test_missing_event_type_returns_400(_mock_verify):
-    """Missing ``event_type`` in the parsed body → 400."""
-    bad_event = {
-        **_BASE_EVENT,
-        "body": json.dumps(
-            {
-                "resource": {"id": "PP-1", "status": "APPROVED"},
-            }
-        ),
-    }
-    with _patch_env():
-        response = handler(bad_event, None)
-
-    body = _assert_response(response, 400)
-    assert body["error"] == "INVALID_WEBHOOK_PAYLOAD"
-
-
-# ---------------------------------------------------------------------------
-# Test 5: missing resource → 400
-# ---------------------------------------------------------------------------
-
-
-@patch("src.lambdas.paypal_webhook.handler.verify_webhook_signature", return_value=True)
-def test_missing_resource_returns_400(_mock_verify):
-    """Missing ``resource`` object → 400."""
-    bad_event = {
-        **_BASE_EVENT,
-        "body": json.dumps({"event_type": "CHECKOUT.ORDER.APPROVED"}),
-    }
-    with _patch_env():
-        response = handler(bad_event, None)
-
-    body = _assert_response(response, 400)
-    assert body["error"] == "INVALID_WEBHOOK_PAYLOAD"
-
-
-# ---------------------------------------------------------------------------
-# Test 6: not-JSON body → 400
-# ---------------------------------------------------------------------------
-
-
-@patch("src.lambdas.paypal_webhook.handler.verify_webhook_signature", return_value=True)
-def test_not_json_body_returns_400(_mock_verify):
-    """Body is not valid JSON → 400, INVALID_JSON."""
-    bad_event = {**_BASE_EVENT, "body": "not-json!!!"}
-    with _patch_env():
-        response = handler(bad_event, None)
-
-    body = _assert_response(response, 400)
-    assert body["error"] == "INVALID_JSON"
-
-
-# ---------------------------------------------------------------------------
-# Test 7: missing body → 400
-# ---------------------------------------------------------------------------
-
-
-@patch("src.lambdas.paypal_webhook.handler.verify_webhook_signature", return_value=True)
-def test_missing_body_returns_400(_mock_verify):
-    """No 'body' key in event → 400."""
-    event = {"headers": _BASE_EVENT["headers"]}
-    with _patch_env():
-        response = handler(event, None)
-
-    body = _assert_response(response, 400)
-    assert body["error"] == "MISSING_BODY"
-
-
-# ---------------------------------------------------------------------------
-# Test 8: multiValueHeaders are flattened, SM started
-# ---------------------------------------------------------------------------
-
-
-@patch("src.lambdas.paypal_webhook.handler.verify_webhook_signature", return_value=True)
-@patch("src.lambdas.paypal_webhook.handler.boto3.client")
-def test_multi_value_headers_are_flattened_and_sm_started(
-    mock_boto3_client, _mock_verify
-):
-    """API Gateway may use multiValueHeaders (lists) instead of headers."""
-    mock_sfn = MagicMock()
-    mock_boto3_client.return_value = mock_sfn
-
-    event = {
-        "multiValueHeaders": {
-            "paypal-transmission-id": ["txn-multi"],
-            "paypal-transmission-time": ["2026-07-18T10:00:00Z"],
-            "paypal-cert-url": [
-                "https://api.paypal.com/v1/notifications/certs/CERT-360"
-            ],
-            "paypal-auth-algo": ["SHA256withRSA"],
-            "paypal-transmission-sig": ["sig-multi"],
-        },
-        "body": _BASE_EVENT["body"],
-    }
-
-    with _patch_env():
-        response = handler(event, None)
-
-    body = _assert_response(response, 200)
-    assert body["paypal_order_id"] == "PAYPAL-ORDER-42"
-
-    # Assert headers were flattened to strings
-    _mock_verify.assert_called_once()
-    headers_arg = _mock_verify.call_args[0][0]
-    assert headers_arg["paypal-transmission-id"] == "txn-multi"
-    assert headers_arg["paypal-transmission-sig"] == "sig-multi"
-
-    # Assert SM was started
-    mock_sfn.start_execution.assert_called_once()
-</file>
-
-<file path=".github/workflows/python-ci.yml">
-name: Python CI
-
-on:
-  push:
-  pull_request:
-    branches: [main]
-
-jobs:
-  python-checks:
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-
-      - name: Install tools
-        run: |
-          python -m pip install --upgrade pip
-          pip install ruff pytest
-
-      - name: Lint
-        run: ruff check src scripts
-
-      - name: Format diff
-        run: ruff format --diff src scripts
-</file>
-
-<file path="scripts/invoke_local.py">
-"""Invoke a Lambda handler locally.
-
-Usage:
-    python scripts/invoke_local.py <handler_name> [event_file.json]
-
-Example:
-    python scripts/invoke_local.py health
-    python scripts/invoke_local.py create_order tests/fixtures/events/create-order.json
-"""
-
-import importlib
-import json
-import os
-import sys
-
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-
-def main():
-    if len(sys.argv) < 2:
-        print(__doc__)
-        sys.exit(1)
-    handler_name = sys.argv[1]
-    event = {}
-    if len(sys.argv) > 2:
-        with open(sys.argv[2], encoding="utf-8") as fh:
-            event = json.load(fh)
-    module = importlib.import_module(f"src.lambdas.{handler_name}.handler")
-    print(json.dumps(module.handler(event, None), indent=2, ensure_ascii=False))
-
-
-if __name__ == "__main__":
-    main()
 </file>
 
 <file path="src/modules/orders/api/dtos.py">
@@ -6995,6 +6290,119 @@ class PaymentSession:
     expires_at: str | None = None
 </file>
 
+<file path="src/shared/config/env.py">
+"""Centralized access to environment variables (12-factor config).
+
+Names match the "Required Environment Variables" list in FDS-15.
+Credentials are hydrated from Secrets Manager first, plain env second.
+"""
+
+import os
+
+from src.shared.config.secrets import get_service_secret
+
+
+def get(name: str, default: str | None = None, required: bool = False) -> str | None:
+    value = os.environ.get(name, default)
+    if required and not value:
+        raise RuntimeError(f"Missing required environment variable: {name}")
+    return value
+
+
+def _hydrate(name: str, default: str | None = None) -> str | None:
+    """Return secret value for *name* if available, otherwise env value.
+
+    When SERVICE_SECRET_ARN is unset the secret is empty dict so behaviour
+    falls back to plain env — local dev keeps working unchanged.
+    """
+    secret = get_service_secret()
+    value = secret.get(name)
+    if value is not None:
+        return value
+    return os.environ.get(name, default)
+
+
+AWS_REGION = get("AWS_REGION", "eu-west-1")
+
+SUPABASE_URL = _hydrate("SUPABASE_URL")
+SUPABASE_SERVICE_ROLE_KEY = _hydrate("SUPABASE_SERVICE_ROLE_KEY")
+
+ORDER_STATUS_TABLE_NAME = get("ORDER_STATUS_TABLE_NAME", "order-status-live")
+
+ORDER_EVENTS_TOPIC_ARN = get("ORDER_EVENTS_TOPIC_ARN")
+ORDER_INBOUND_QUEUE_URL = get("ORDER_INBOUND_QUEUE_URL")
+
+ORDER_PRE_PAYMENT_STATE_MACHINE_ARN = get("ORDER_PRE_PAYMENT_STATE_MACHINE_ARN")
+ORDER_POST_PAYMENT_STATE_MACHINE_ARN = get("ORDER_POST_PAYMENT_STATE_MACHINE_ARN")
+
+MENU_SERVICE_BASE_URL = get("MENU_SERVICE_BASE_URL")
+PAYMENT_SERVICE_BASE_URL = get("PAYMENT_SERVICE_BASE_URL")
+INTERNAL_SERVICE_JWT = get("INTERNAL_SERVICE_JWT")
+</file>
+
+<file path="src/shared/payments/models.py">
+"""Payment domain models (FDS-27 R2).
+
+Pydantic models for payment sessions and payment verification results.
+All money amounts use ``Decimal`` — never ``float``.
+"""
+
+from __future__ import annotations
+
+from decimal import Decimal
+from enum import StrEnum
+
+from pydantic import BaseModel, Field
+
+
+class PaymentStatus(StrEnum):
+    """Status of a payment session tracked by Order Service (DB enum)."""
+
+    PENDING = "PENDING"
+    CUSTOMER_ACTION_REQUIRED = "CUSTOMER_ACTION_REQUIRED"
+    SUCCEEDED = "SUCCEEDED"
+    FAILED = "FAILED"
+    REFUNDED = "REFUNDED"
+
+
+class PaymentSession(BaseModel):
+    """A payment session linked to a payment provider order."""
+
+    order_id: str = Field(..., min_length=1, description="Internal order id")
+    provider: str = Field(
+        default="paypal", min_length=1, description="Payment provider"
+    )
+    provider_ref: str = Field(..., min_length=1, description="Provider-side order id")
+    approval_url: str = Field(default="", description="Provider approval/checkout URL")
+    amount: Decimal = Field(..., gt=0, description="Payment amount")
+    currency: str = Field(
+        ..., min_length=3, max_length=3, description="ISO 4217 currency code"
+    )
+    status: PaymentStatus = Field(
+        default=PaymentStatus.PENDING, description="Current session status"
+    )
+
+
+class PaymentVerification(BaseModel):
+    """Result of verifying a payment (after customer approval)."""
+
+    provider: str = Field(
+        default="paypal", min_length=1, description="Payment provider"
+    )
+    provider_ref: str = Field(
+        ..., min_length=1, description="Provider-side order id that was verified"
+    )
+    status: str = Field(
+        ...,
+        min_length=1,
+        description="Provider order status (e.g. APPROVED, COMPLETED)",
+    )
+    amount: Decimal = Field(..., gt=0, description="Captured/approved amount")
+    currency: str = Field(
+        ..., min_length=3, max_length=3, description="ISO 4217 currency code"
+    )
+</file>
+
 <file path="src/shared/utils/ids.py">
 """ID generation helpers."""
 
@@ -7009,6 +6417,380 @@ def new_order_id() -> str:
 def new_address_id() -> str:
     """Generate a new address id like 'addr-1a2b3c4d5e6f'."""
     return f"addr-{uuid.uuid4().hex[:12]}"
+</file>
+
+<file path="tests/test_publish_order_event.py">
+"""Hermetic unit tests for publish_order_event lambda (FDS-27 P2-C11).
+
+All external dependencies (EventBridge client, bus name resolution) are
+mocked — no real AWS calls.
+"""
+
+from __future__ import annotations
+
+import json
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+from src.lambdas.publish_order_event.handler import handler
+from src.shared.errors.app_error import AppError
+from src.shared.events.event_publisher import EventPublishError
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+_VALID_UUID = "550e8400-e29b-41d4-a716-446655440000"
+
+_VALID_EVENT_PAID = {
+    "order_id": _VALID_UUID,
+    "paypal_order_id": "5O190127TN364715T",
+    "status": "PAID",
+}
+
+_VALID_EVENT_FAILED = {
+    "order_id": _VALID_UUID,
+    "paypal_order_id": "5O190127TN364715T",
+    "status": "FAILED",
+}
+
+
+def _make_mock_publisher() -> MagicMock:
+    """Return a MagicMock publisher whose ``put_event`` returns a fake EventId."""
+    pub = MagicMock()
+    pub.put_event.return_value = "evt-1"
+    return pub
+
+
+_PUBLISHER_PATCH = patch(
+    "src.lambdas.publish_order_event.handler.event_publisher.get_event_publisher"
+)
+_BUS_PATCH = patch(
+    "src.lambdas.publish_order_event.handler.event_publisher.get_bus_name",
+    return_value="orders-bus",
+)
+
+
+# ---------------------------------------------------------------------------
+# Test 1: status PAID → event_name == "order.paid", publisher called once
+# ---------------------------------------------------------------------------
+
+
+@_BUS_PATCH
+@_PUBLISHER_PATCH
+def test_paid_status_emits_order_paid(mock_pub, _mock_bus):
+    pub = _make_mock_publisher()
+    mock_pub.return_value = pub
+
+    result = handler(_VALID_EVENT_PAID, None)
+
+    assert result == {
+        "published": True,
+        "event_name": "order.paid",
+        "order_id": _VALID_UUID,
+    }
+    pub.put_event.assert_called_once_with(
+        bus="orders-bus",
+        source="order-service",
+        detail_type="order.paid",
+        detail={
+            "order_id": _VALID_UUID,
+            "paypal_order_id": "5O190127TN364715T",
+            "status": "PAID",
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
+# Test 2: status FAILED → event_name == "order.payment_failed"
+# ---------------------------------------------------------------------------
+
+
+@_BUS_PATCH
+@_PUBLISHER_PATCH
+def test_failed_status_emits_payment_failed(mock_pub, _mock_bus):
+    pub = _make_mock_publisher()
+    mock_pub.return_value = pub
+
+    result = handler(_VALID_EVENT_FAILED, None)
+
+    assert result["event_name"] == "order.payment_failed"
+    assert result["published"] is True
+    assert result["order_id"] == _VALID_UUID
+    pub.put_event.assert_called_once()
+    assert pub.put_event.call_args.kwargs["detail_type"] == "order.payment_failed"
+    assert pub.put_event.call_args.kwargs["detail"]["status"] == "FAILED"
+
+
+# ---------------------------------------------------------------------------
+# Test 3: ALREADY_PAID → also mapped to order.paid
+# ---------------------------------------------------------------------------
+
+
+@_BUS_PATCH
+@_PUBLISHER_PATCH
+def test_already_paid_emits_order_paid(mock_pub, _mock_bus):
+    pub = _make_mock_publisher()
+    mock_pub.return_value = pub
+
+    result = handler({**_VALID_EVENT_PAID, "status": "ALREADY_PAID"}, None)
+
+    assert result["event_name"] == "order.paid"
+    pub.put_event.assert_called_once_with(
+        bus="orders-bus",
+        source="order-service",
+        detail_type="order.paid",
+        detail={
+            "order_id": _VALID_UUID,
+            "paypal_order_id": "5O190127TN364715T",
+            "status": "ALREADY_PAID",
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
+# Test 3b: ALREADY_FAILED → also mapped to order.payment_failed
+# ---------------------------------------------------------------------------
+
+
+@_BUS_PATCH
+@_PUBLISHER_PATCH
+def test_already_failed_emits_payment_failed(mock_pub, _mock_bus):
+    """C9 may emit ALREADY_FAILED — it must still map to order.payment_failed."""
+    pub = _make_mock_publisher()
+    mock_pub.return_value = pub
+
+    result = handler({**_VALID_EVENT_FAILED, "status": "ALREADY_FAILED"}, None)
+
+    assert result["event_name"] == "order.payment_failed"
+    assert result["published"] is True
+    pub.put_event.assert_called_once_with(
+        bus="orders-bus",
+        source="order-service",
+        detail_type="order.payment_failed",
+        detail={
+            "order_id": _VALID_UUID,
+            "paypal_order_id": "5O190127TN364715T",
+            "status": "ALREADY_FAILED",
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
+# Test 4: invalid input → AppError(400, INVALID_INPUT)
+# ---------------------------------------------------------------------------
+
+
+def test_missing_order_id_raises_400():
+    """Missing ``order_id`` → AppError(400, INVALID_INPUT)."""
+    bad_event = {"paypal_order_id": "5O190127TN364715T", "status": "PAID"}
+
+    with pytest.raises(AppError) as exc_info:
+        handler(bad_event, None)
+
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.code == "INVALID_INPUT"
+
+
+def test_empty_status_raises_400():
+    """Empty string for ``status`` → AppError(400, INVALID_INPUT)."""
+    bad_event = {
+        "order_id": _VALID_UUID,
+        "paypal_order_id": "5O190127TN364715T",
+        "status": "",
+    }
+
+    with pytest.raises(AppError) as exc_info:
+        handler(bad_event, None)
+
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.code == "INVALID_INPUT"
+
+
+# ---------------------------------------------------------------------------
+# Test 5: publisher raises EventPublishError → AppError(500, EVENT_PUBLISH_FAILED)
+# ---------------------------------------------------------------------------
+
+
+def test_non_uuid_order_id_raises_400():
+    """A non-UUID order_id like 'not-a-uuid' → AppError(400, INVALID_INPUT)."""
+    bad_event = {
+        "order_id": "not-a-uuid",
+        "paypal_order_id": "5O190127TN364715T",
+        "status": "PAID",
+    }
+
+    with pytest.raises(AppError) as exc_info:
+        handler(bad_event, None)
+
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.code == "INVALID_INPUT"
+
+
+@_BUS_PATCH
+@_PUBLISHER_PATCH
+def test_result_is_json_serializable(mock_pub, _mock_bus):
+    """The returned dict is JSON-encodable and order_id is a plain str."""
+    pub = _make_mock_publisher()
+    mock_pub.return_value = pub
+
+    result = handler(_VALID_EVENT_PAID, None)
+
+    dumped = json.dumps(result)
+    assert isinstance(dumped, str)
+
+    # Round-trip to verify order_id survived as a string
+    reloaded = json.loads(dumped)
+    assert reloaded["order_id"] == _VALID_UUID
+    assert isinstance(reloaded["order_id"], str)
+
+
+@_BUS_PATCH
+@_PUBLISHER_PATCH
+def test_publish_failure_raises_500(mock_pub, _mock_bus):
+    pub = MagicMock()
+    pub.put_event.side_effect = EventPublishError("boom")
+    mock_pub.return_value = pub
+
+    with pytest.raises(AppError) as exc_info:
+        handler(_VALID_EVENT_PAID, None)
+
+    assert exc_info.value.status_code == 500
+    assert exc_info.value.code == "EVENT_PUBLISH_FAILED"
+</file>
+
+<file path=".github/workflows/python-ci.yml">
+name: Python CI
+
+on:
+  push:
+  pull_request:
+    branches: [main]
+
+jobs:
+  python-checks:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff pytest
+
+      - name: Lint
+        run: ruff check src scripts
+
+      - name: Format diff
+        run: ruff format --diff src scripts
+</file>
+
+<file path="src/lambdas/create_payment_session/handler.py">
+"""Step Functions step — create a PayPal payment session (FDS-27 R3).
+
+This step runs after the order has been created with status PENDING_PAYMENT.
+It calls PayPal to create a checkout order, persists a PaymentSession row
+(via the payments repository), and returns the PayPal approval URL so the
+state machine can redirect the customer.
+
+Input:
+    { "order_id": str, "amount": <number>, "currency": str }
+
+Output:
+    { "order_id", "provider_ref", "approval_url" }
+
+On any failure the exception is logged and re-raised so the state machine's
+Catch clause can handle it — no error is ever swallowed.
+"""
+
+from __future__ import annotations
+
+import logging
+
+from src.lambdas.create_payment_session.schema import CreatePaymentSessionInput
+from src.shared.errors.app_error import AppError
+from src.shared.payments import paypal_client
+from src.shared.payments import payment_repository
+from src.shared.payments.models import PaymentStatus
+from src.shared.validation import validated_input
+
+logger = logging.getLogger(__name__)
+
+
+@validated_input(CreatePaymentSessionInput)
+def handler(event, context=None):
+    # ------------------------------------------------------------------
+    # 1. Validated input (via decorator)
+    # ------------------------------------------------------------------
+    order_id = event.order_id
+    amount = event.amount
+    currency = event.currency
+
+    # ------------------------------------------------------------------
+    # 2. Create PayPal checkout order
+    # ------------------------------------------------------------------
+    try:
+        paypal_result = paypal_client.create_order(
+            order_id=order_id,
+            amount=amount,
+            currency=currency,
+        )
+    except paypal_client.PayPalError:
+        logger.exception("PayPal create_order failed for order_id=%s", order_id)
+        raise
+    except Exception as exc:
+        logger.exception(
+            "PayPal create_order failed for order_id=%s with unexpected error",
+            order_id,
+        )
+        raise AppError(
+            500,
+            "PAYPAL_CREATE_ORDER_FAILED",
+            f"Unexpected error calling PayPal: {exc}",
+        ) from exc
+
+    provider_ref = paypal_result["paypal_order_id"]
+    approval_url = paypal_result["approval_url"]
+
+    # ------------------------------------------------------------------
+    # 3. Persist payment session
+    # ------------------------------------------------------------------
+    try:
+        payment_repository.create_payment(
+            order_id=order_id,
+            provider="paypal",
+            provider_ref=provider_ref,
+            amount=amount,
+            currency=currency,
+            status=PaymentStatus.PENDING,
+            approval_url=approval_url,
+        )
+    except Exception as exc:
+        logger.exception(
+            "create_payment failed for order_id=%s provider_ref=%s",
+            order_id,
+            provider_ref,
+        )
+        raise AppError(
+            500,
+            "PAYMENT_PERSISTENCE_FAILED",
+            f"Failed to persist payment session: {exc}",
+        ) from exc
+
+    # ------------------------------------------------------------------
+    # 4. Return SM output
+    # ------------------------------------------------------------------
+    return {
+        "order_id": order_id,
+        "provider_ref": provider_ref,
+        "approval_url": approval_url,
+    }
 </file>
 
 <file path="src/lambdas/get_customer_orders/handler.py">
@@ -7056,6 +6838,116 @@ def handler(event, context=None):
     return api_response.ok(mappers.to_order_response(order))
 </file>
 
+<file path="src/lambdas/mark_payment_result/schema.py">
+"""Pydantic models for mark_payment_result input validation (FDS-27 P2-C9).
+
+Validates the input event (output of ``verify_payment``) before the handler
+marks the payment as PAID or FAILED.
+"""
+
+from __future__ import annotations
+
+from uuid import UUID
+
+from pydantic import BaseModel
+
+from src.shared.payments.validators import PaypalId
+
+
+class MarkPaymentInput(BaseModel):
+    """Validated input for the mark_payment_result Lambda."""
+
+    verified: bool
+    order_id: UUID
+    paypal_order_id: PaypalId
+</file>
+
+<file path="src/lambdas/publish_order_event/handler.py">
+"""Step Functions step — publish an order domain event to EventBridge (FDS-27 P2-C11).
+
+This step runs after ``mark_payment_result`` (C9) has persisted the verification
+result. It emits a domain event (``order.paid`` or ``order.payment_failed``) so
+downstream services (Delivery, Notifications, Analytics) can react to the final
+payment outcome.
+
+Input:
+    ``{ "order_id": str, "paypal_order_id": str, "status": str }``
+    — output of mark_payment_result (C9). ``status`` is one of
+    ``PAID`` / ``ALREADY_PAID`` / ``FAILED`` / ``ALREADY_FAILED``.
+
+Output:
+    ``{ "published": bool, "event_name": str, "order_id": str }``
+"""
+
+from __future__ import annotations
+
+import logging
+
+from src.lambdas.publish_order_event.schema import PublishInput
+from src.shared.errors.app_error import AppError
+from src.shared.events import event_publisher
+from src.shared.validation import validated_input
+
+logger = logging.getLogger(__name__)
+
+_PAID_STATUSES = {"PAID", "ALREADY_PAID"}
+# Both statuses mean the payment is confirmed paid; they differ only by
+# idempotency: "PAID" = marked paid by THIS execution, "ALREADY_PAID" = was
+# already paid by an earlier (retried/duplicate) run. Both must still emit
+# the order.paid event, so they are grouped together here.
+_SOURCE = "order-service"
+
+
+@validated_input(PublishInput)
+def handler(event, context=None):
+    # ------------------------------------------------------------------
+    # 1. Validated input (via decorator)
+    # ------------------------------------------------------------------
+
+    # ------------------------------------------------------------------
+    # 2. Map persisted status → domain event name
+    # ------------------------------------------------------------------
+    event_name = (
+        "order.paid" if event.status in _PAID_STATUSES else "order.payment_failed"
+    )
+
+    # ------------------------------------------------------------------
+    # 3. Publish to EventBridge
+    # ------------------------------------------------------------------
+    publisher = event_publisher.get_event_publisher()
+    try:
+        publisher.put_event(
+            bus=event_publisher.get_bus_name(),
+            source=_SOURCE,
+            detail_type=event_name,
+            detail={
+                "order_id": str(event.order_id),
+                "paypal_order_id": event.paypal_order_id,
+                "status": event.status,
+            },
+        )
+    except Exception as exc:
+        logger.exception(
+            "EventBridge put_event failed for order_id=%s event_name=%s",
+            event.order_id,
+            event_name,
+        )
+        raise AppError(
+            500,
+            "EVENT_PUBLISH_FAILED",
+            f"Failed to publish {event_name}: {exc}",
+        ) from exc
+
+    # ------------------------------------------------------------------
+    # 4. Return SM output
+    # ------------------------------------------------------------------
+    return {
+        "published": True,
+        "event_name": event_name,
+        "order_id": str(event.order_id),
+    }
+</file>
+
 <file path="src/modules/events/model/delivery_event.py">
 """Inbound delivery.* events consumed from SQS (FDS-16)."""
 
@@ -7094,6 +6986,461 @@ class DeliveryStatusChanged:
     stage: DeliveryStage
     event_type: DeliveryEventType = DeliveryEventType.STATUS_CHANGED
     occurred_at: str | None = None
+</file>
+
+<file path="tests/test_mark_payment_result.py">
+"""Hermetic unit tests for mark_payment_result lambda (FDS-27 P2-C9).
+
+All external dependencies (payment_repository.mark_paid, mark_failed) are
+mocked — no database calls.
+"""
+
+from __future__ import annotations
+
+import json
+from unittest.mock import patch
+
+import pytest
+
+from src.lambdas.mark_payment_result.handler import handler
+from src.shared.errors.app_error import AppError
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+_VALID_UUID = "550e8400-e29b-41d4-a716-446655440000"
+
+_VALID_EVENT_VERIFIED = {
+    "verified": True,
+    "order_id": _VALID_UUID,
+    "paypal_order_id": "5O190127TN364715T",
+}
+
+_VALID_EVENT_NOT_VERIFIED = {
+    "verified": False,
+    "order_id": _VALID_UUID,
+    "paypal_order_id": "5O190127TN364715T",
+}
+
+
+# ---------------------------------------------------------------------------
+# Test 1: verified=True + mark_paid succeeds → PAID, applied=True
+# ---------------------------------------------------------------------------
+
+
+@patch("src.lambdas.mark_payment_result.handler.payment_repository.mark_paid")
+def test_verified_true_mark_paid_succeeds(mock_mark_paid):
+    mock_mark_paid.return_value = True
+
+    result = handler(_VALID_EVENT_VERIFIED, None)
+
+    assert result == {
+        "order_id": _VALID_UUID,
+        "paypal_order_id": "5O190127TN364715T",
+        "status": "PAID",
+        "applied": True,
+    }
+    mock_mark_paid.assert_called_once_with("paypal", "5O190127TN364715T")
+
+
+# ---------------------------------------------------------------------------
+# Test 2: verified=True but mark_paid returns False → ALREADY_PAID
+# ---------------------------------------------------------------------------
+
+
+@patch("src.lambdas.mark_payment_result.handler.payment_repository.mark_paid")
+def test_verified_true_already_paid(mock_mark_paid):
+    """Already paid (rowcount=0 from mark_paid) → status ALREADY_PAID."""
+    mock_mark_paid.return_value = False
+
+    result = handler(_VALID_EVENT_VERIFIED, None)
+
+    assert result["status"] == "ALREADY_PAID"
+    assert result["applied"] is False
+    assert result["order_id"] == _VALID_UUID
+    assert result["paypal_order_id"] == "5O190127TN364715T"
+
+
+# ---------------------------------------------------------------------------
+# Test 3: verified=False → mark_failed called → FAILED, applied=True
+# ---------------------------------------------------------------------------
+
+
+@patch("src.lambdas.mark_payment_result.handler.payment_repository.mark_failed")
+def test_verified_false_mark_failed_succeeds(mock_mark_failed):
+    mock_mark_failed.return_value = True
+
+    result = handler(_VALID_EVENT_NOT_VERIFIED, None)
+
+    assert result == {
+        "order_id": _VALID_UUID,
+        "paypal_order_id": "5O190127TN364715T",
+        "status": "FAILED",
+        "applied": True,
+    }
+    mock_mark_failed.assert_called_once_with(
+        "paypal",
+        "5O190127TN364715T",
+        failure_code="PAYMENT_NOT_VERIFIED",
+        failure_message="PayPal payment did not match the order",
+    )
+
+
+# ---------------------------------------------------------------------------
+# Test 4: invalid input → AppError(400)
+# ---------------------------------------------------------------------------
+
+
+def test_missing_required_field_raises_400():
+    """Missing ``order_id`` in the event → AppError(400, INVALID_INPUT)."""
+    bad_event = {"verified": True, "paypal_order_id": "5O190127TN364715T"}
+
+    with pytest.raises(AppError) as exc_info:
+        handler(bad_event, None)
+
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.code == "INVALID_INPUT"
+
+
+def test_empty_paypal_order_id_raises_400():
+    """Empty string for paypal_order_id → AppError(400, INVALID_INPUT)."""
+    bad_event = {
+        "verified": True,
+        "order_id": _VALID_UUID,
+        "paypal_order_id": "",
+    }
+
+    with pytest.raises(AppError) as exc_info:
+        handler(bad_event, None)
+
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.code == "INVALID_INPUT"
+
+
+# ---------------------------------------------------------------------------
+# Test 6: valid UUID order_id → passes
+# ---------------------------------------------------------------------------
+
+
+@patch("src.lambdas.mark_payment_result.handler.payment_repository.mark_paid")
+def test_valid_uuid_order_id_passes(mock_mark_paid):
+    """A valid UUID order_id is accepted — validation does not reject it."""
+    mock_mark_paid.return_value = True
+
+    result = handler(_VALID_EVENT_VERIFIED, None)
+
+    assert result["order_id"] == _VALID_UUID
+    assert result["status"] == "PAID"
+
+
+# ---------------------------------------------------------------------------
+# Test 7: non-UUID order_id → AppError(400, INVALID_INPUT)
+# ---------------------------------------------------------------------------
+
+
+def test_too_short_paypal_id_raises_400():
+    """PayPal ID shorter than 5 chars → AppError(400, INVALID_INPUT)."""
+    bad_event = {
+        "verified": True,
+        "order_id": _VALID_UUID,
+        "paypal_order_id": "AB",
+    }
+
+    with pytest.raises(AppError) as exc_info:
+        handler(bad_event, None)
+
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.code == "INVALID_INPUT"
+
+
+def test_non_alphanumeric_paypal_id_raises_400():
+    """PayPal ID with hyphens (non-alphanumeric) → AppError(400, INVALID_INPUT)."""
+    bad_event = {
+        "verified": True,
+        "order_id": _VALID_UUID,
+        "paypal_order_id": "PP-42",
+    }
+
+    with pytest.raises(AppError) as exc_info:
+        handler(bad_event, None)
+
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.code == "INVALID_INPUT"
+
+
+def test_non_uuid_order_id_raises_400():
+    """A non-UUID order_id like 'not-a-uuid' → AppError(400, INVALID_INPUT)."""
+    bad_event = {
+        "verified": True,
+        "order_id": "not-a-uuid",
+        "paypal_order_id": "5O190127TN364715T",
+    }
+
+    with pytest.raises(AppError) as exc_info:
+        handler(bad_event, None)
+
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.code == "INVALID_INPUT"
+
+
+# ---------------------------------------------------------------------------
+# Test 8: serialization guard — json.dumps succeeds, order_id is str
+# ---------------------------------------------------------------------------
+
+
+@patch("src.lambdas.mark_payment_result.handler.payment_repository.mark_paid")
+def test_result_is_json_serializable(mock_mark_paid):
+    """The returned dict is JSON-encodable and order_id is a plain str."""
+    mock_mark_paid.return_value = True
+
+    result = handler(_VALID_EVENT_VERIFIED, None)
+
+    dumped = json.dumps(result)
+    assert isinstance(dumped, str)
+
+    # Round-trip to verify order_id survived as a string
+    reloaded = json.loads(dumped)
+    assert reloaded["order_id"] == _VALID_UUID
+    assert isinstance(reloaded["order_id"], str)
+</file>
+
+<file path="tests/test_paypal_webhook.py">
+"""Hermetic unit tests for paypal_webhook lambda (FDS-27 P2-C6).
+
+All external dependencies (verify_webhook_signature, boto3 stepfunctions)
+are mocked — no network calls.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+from unittest.mock import MagicMock, patch
+
+
+from src.lambdas.paypal_webhook.handler import handler
+
+# ---------------------------------------------------------------------------
+# Fixtures
+# ---------------------------------------------------------------------------
+
+_SM_ARN = "arn:aws:states:us-east-1:000000000000:stateMachine:payment-confirmation"
+
+_BASE_EVENT = {
+    "headers": {
+        "paypal-transmission-id": "txn-abc123",
+        "paypal-transmission-time": "2026-07-18T10:00:00Z",
+        "paypal-cert-url": "https://api.paypal.com/v1/notifications/certs/CERT-360",
+        "paypal-auth-algo": "SHA256withRSA",
+        "paypal-transmission-sig": "sig-value",
+    },
+    "body": json.dumps(
+        {
+            "event_type": "CHECKOUT.ORDER.APPROVED",
+            "resource": {
+                "id": "5O190127TN364715T",
+                "status": "APPROVED",
+            },
+        }
+    ),
+}
+
+_NORMALISED = {
+    "event_type": "CHECKOUT.ORDER.APPROVED",
+    "paypal_order_id": "5O190127TN364715T",
+    "status": "APPROVED",
+}
+
+
+def _patch_env():
+    """Set PAYMENT_CONFIRMATION_SM_ARN for tests that need it."""
+    return patch.dict(os.environ, {"PAYMENT_CONFIRMATION_SM_ARN": _SM_ARN})
+
+
+def _assert_response(response: dict, expected_status: int):
+    """Assert an API Gateway proxy response has the expected shape and status."""
+    assert isinstance(response, dict)
+    assert "statusCode" in response
+    assert "headers" in response
+    assert "body" in response
+    assert response["statusCode"] == expected_status
+    assert response["headers"]["Content-Type"] == "application/json"
+    body = json.loads(response["body"])
+    return body
+
+
+# ---------------------------------------------------------------------------
+# Test 1: valid signature → starts SM → 200 accepted
+# ---------------------------------------------------------------------------
+
+
+@patch("src.lambdas.paypal_webhook.handler.verify_webhook_signature", return_value=True)
+@patch("src.lambdas.paypal_webhook.handler.boto3.client")
+def test_valid_signature_starts_sm_and_returns_200(mock_boto3_client, _mock_verify):
+    mock_sfn = MagicMock()
+    mock_boto3_client.return_value = mock_sfn
+
+    with _patch_env():
+        response = handler(_BASE_EVENT, None)
+
+    body = _assert_response(response, 200)
+    assert body == {"status": "accepted", "paypal_order_id": "5O190127TN364715T"}
+
+    _mock_verify.assert_called_once_with(_BASE_EVENT["headers"], _BASE_EVENT["body"])
+    mock_boto3_client.assert_called_once_with("stepfunctions")
+    mock_sfn.start_execution.assert_called_once_with(
+        stateMachineArn=_SM_ARN,
+        input=json.dumps(_NORMALISED),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Test 2: invalid signature → 401
+# ---------------------------------------------------------------------------
+
+
+@patch(
+    "src.lambdas.paypal_webhook.handler.verify_webhook_signature",
+    return_value=False,
+)
+def test_invalid_signature_returns_401(_mock_verify):
+    with _patch_env():
+        response = handler(_BASE_EVENT, None)
+
+    body = _assert_response(response, 401)
+    assert body["error"] == "WEBHOOK_UNVERIFIED"
+
+
+# ---------------------------------------------------------------------------
+# Test 3: missing PAYMENT_CONFIRMATION_SM_ARN → 500
+# ---------------------------------------------------------------------------
+
+
+@patch("src.lambdas.paypal_webhook.handler.verify_webhook_signature", return_value=True)
+def test_missing_sm_arn_returns_500(_mock_verify):
+    with patch.dict(os.environ, {}, clear=True):
+        response = handler(_BASE_EVENT, None)
+
+    body = _assert_response(response, 500)
+    assert body["error"] == "MISSING_SM_ARN"
+
+
+# ---------------------------------------------------------------------------
+# Test 4: missing event_type → 400
+# ---------------------------------------------------------------------------
+
+
+@patch("src.lambdas.paypal_webhook.handler.verify_webhook_signature", return_value=True)
+def test_missing_event_type_returns_400(_mock_verify):
+    """Missing ``event_type`` in the parsed body → 400."""
+    bad_event = {
+        **_BASE_EVENT,
+        "body": json.dumps(
+            {
+                "resource": {"id": "PP-1", "status": "APPROVED"},
+            }
+        ),
+    }
+    with _patch_env():
+        response = handler(bad_event, None)
+
+    body = _assert_response(response, 400)
+    assert body["error"] == "INVALID_WEBHOOK_PAYLOAD"
+
+
+# ---------------------------------------------------------------------------
+# Test 5: missing resource → 400
+# ---------------------------------------------------------------------------
+
+
+@patch("src.lambdas.paypal_webhook.handler.verify_webhook_signature", return_value=True)
+def test_missing_resource_returns_400(_mock_verify):
+    """Missing ``resource`` object → 400."""
+    bad_event = {
+        **_BASE_EVENT,
+        "body": json.dumps({"event_type": "CHECKOUT.ORDER.APPROVED"}),
+    }
+    with _patch_env():
+        response = handler(bad_event, None)
+
+    body = _assert_response(response, 400)
+    assert body["error"] == "INVALID_WEBHOOK_PAYLOAD"
+
+
+# ---------------------------------------------------------------------------
+# Test 6: not-JSON body → 400
+# ---------------------------------------------------------------------------
+
+
+@patch("src.lambdas.paypal_webhook.handler.verify_webhook_signature", return_value=True)
+def test_not_json_body_returns_400(_mock_verify):
+    """Body is not valid JSON → 400, INVALID_JSON."""
+    bad_event = {**_BASE_EVENT, "body": "not-json!!!"}
+    with _patch_env():
+        response = handler(bad_event, None)
+
+    body = _assert_response(response, 400)
+    assert body["error"] == "INVALID_JSON"
+
+
+# ---------------------------------------------------------------------------
+# Test 7: missing body → 400
+# ---------------------------------------------------------------------------
+
+
+@patch("src.lambdas.paypal_webhook.handler.verify_webhook_signature", return_value=True)
+def test_missing_body_returns_400(_mock_verify):
+    """No 'body' key in event → 400."""
+    event = {"headers": _BASE_EVENT["headers"]}
+    with _patch_env():
+        response = handler(event, None)
+
+    body = _assert_response(response, 400)
+    assert body["error"] == "MISSING_BODY"
+
+
+# ---------------------------------------------------------------------------
+# Test 8: multiValueHeaders are flattened, SM started
+# ---------------------------------------------------------------------------
+
+
+@patch("src.lambdas.paypal_webhook.handler.verify_webhook_signature", return_value=True)
+@patch("src.lambdas.paypal_webhook.handler.boto3.client")
+def test_multi_value_headers_are_flattened_and_sm_started(
+    mock_boto3_client, _mock_verify
+):
+    """API Gateway may use multiValueHeaders (lists) instead of headers."""
+    mock_sfn = MagicMock()
+    mock_boto3_client.return_value = mock_sfn
+
+    event = {
+        "multiValueHeaders": {
+            "paypal-transmission-id": ["txn-multi"],
+            "paypal-transmission-time": ["2026-07-18T10:00:00Z"],
+            "paypal-cert-url": [
+                "https://api.paypal.com/v1/notifications/certs/CERT-360"
+            ],
+            "paypal-auth-algo": ["SHA256withRSA"],
+            "paypal-transmission-sig": ["sig-multi"],
+        },
+        "body": _BASE_EVENT["body"],
+    }
+
+    with _patch_env():
+        response = handler(event, None)
+
+    body = _assert_response(response, 200)
+    assert body["paypal_order_id"] == "5O190127TN364715T"
+
+    # Assert headers were flattened to strings
+    _mock_verify.assert_called_once()
+    headers_arg = _mock_verify.call_args[0][0]
+    assert headers_arg["paypal-transmission-id"] == "txn-multi"
+    assert headers_arg["paypal-transmission-sig"] == "sig-multi"
+
+    # Assert SM was started
+    mock_sfn.start_execution.assert_called_once()
 </file>
 
 <file path="orchestration/order-creation-state-machine.asl.json">
@@ -7160,6 +7507,155 @@ class DeliveryStatusChanged:
     }
   }
 }
+</file>
+
+<file path="scripts/package_lambdas.py">
+"""Package Lambda artifacts: a shared deps layer + per-function code zips.
+
+Layout:
+  - build/layer.zip   -> runtime deps under python/ (a Lambda Layer). Lambda unpacks
+                         layers to /opt and /opt/python is on sys.path, so
+                         `import pydantic` resolves at runtime.
+  - build/<name>.zip   -> ONLY the src/ tree for one function (tiny). Shared deps
+                         come from the layer, not from the zip.
+
+Deps use Lambda-compatible wheels (manylinux2014 x86_64, cpython 3.12) so the
+artifacts are valid regardless of the OS this script runs on.
+
+Usage:
+    python scripts/package_lambdas.py                         # layer + all functions
+    python scripts/package_lambdas.py --layer                 # only build the layer
+    python scripts/package_lambdas.py create_payment_session  # only that function zip
+"""
+
+import shutil
+import subprocess
+import sys
+import zipfile
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+SRC_DIR = PROJECT_ROOT / "src"
+BUILD_DIR = PROJECT_ROOT / "build"
+LAYER_DIR = BUILD_DIR / "layer"
+LAYER_PYTHON_DIR = LAYER_DIR / "python"
+LAYER_ZIP = BUILD_DIR / "layer.zip"
+REQUIREMENTS = PROJECT_ROOT / "requirements-lambda.txt"
+
+# Lambda runtime target (functions run python3.12 on x86_64).
+LAMBDA_PYTHON_VERSION = "3.12"
+LAMBDA_PLATFORM = "manylinux2014_x86_64"
+
+DEPLOYABLE = [
+    "validate_order",
+    "resolve_delivery_address",
+    "create_order_step",
+    "create_payment_session",
+    "paypal_webhook",
+    "verify_payment",
+    "mark_payment_result",
+    "publish_order_event",
+]
+
+EXCLUDED_SUFFIXES = {".pyc", ".pyo", ".pyd"}
+
+
+def _should_exclude(path: Path) -> bool:
+    """Return True if *path* must be kept out of an artifact."""
+    if path.suffix in EXCLUDED_SUFFIXES:
+        return True
+    return "__pycache__" in path.parts
+
+
+def _add_tree(zf: zipfile.ZipFile, root: Path, relative_to: Path) -> None:
+    """Add every file under *root* to *zf*, arcnamed relative to *relative_to*."""
+    for file in root.rglob("*"):
+        if not file.is_file() or _should_exclude(file):
+            continue
+        zf.write(file, str(file.relative_to(relative_to)))
+
+
+def _zip_size_mb(path: Path) -> float:
+    return path.stat().st_size / (1024 * 1024)
+
+
+def build_layer() -> Path:
+    """Install runtime deps and zip them as a Lambda layer (build/layer.zip)."""
+    if LAYER_DIR.exists():
+        shutil.rmtree(LAYER_DIR)
+    LAYER_PYTHON_DIR.mkdir(parents=True, exist_ok=True)
+
+    cmd = [
+        sys.executable,
+        "-m",
+        "pip",
+        "install",
+        "--target",
+        str(LAYER_PYTHON_DIR),
+        "--platform",
+        LAMBDA_PLATFORM,
+        "--implementation",
+        "cp",
+        "--python-version",
+        LAMBDA_PYTHON_VERSION,
+        "--only-binary=:all:",
+        "--requirement",
+        str(REQUIREMENTS),
+    ]
+    print(f"  installing layer deps: {' '.join(cmd)}")
+    subprocess.run(cmd, check=True)
+
+    if LAYER_ZIP.exists():
+        LAYER_ZIP.unlink()
+    with zipfile.ZipFile(LAYER_ZIP, "w", zipfile.ZIP_DEFLATED) as zf:
+        _add_tree(zf, LAYER_DIR, LAYER_DIR)
+
+    size_mb = _zip_size_mb(LAYER_ZIP)
+    warn = "  <-- WARNING: >50MB, needs S3 upload" if size_mb > 50 else ""
+    print(f"  layer -> {LAYER_ZIP} ({size_mb:.1f} MB){warn}")
+    return LAYER_ZIP
+
+
+def package_lambda(name: str) -> Path:
+    """Create build/<name>.zip with ONLY the src/ tree (deps come from the layer)."""
+    BUILD_DIR.mkdir(exist_ok=True)
+    zip_path = BUILD_DIR / f"{name}.zip"
+    if zip_path.exists():
+        zip_path.unlink()
+
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+        _add_tree(zf, SRC_DIR, PROJECT_ROOT)
+
+    print(f"  {name} -> {zip_path} ({_zip_size_mb(zip_path):.2f} MB)")
+    return zip_path
+
+
+def main() -> None:
+    args = sys.argv[1:]
+
+    if "--layer" in args:
+        build_layer()
+        return
+
+    targets = args if args else DEPLOYABLE
+    for t in targets:
+        if t not in DEPLOYABLE:
+            print(f"Unknown lambda: {t} (allowed: {DEPLOYABLE})", file=sys.stderr)
+            sys.exit(1)
+
+    # No positional names -> full build (layer + every function).
+    if not args:
+        build_layer()
+
+    print(f"Packaging {len(targets)} lambda(s) into {BUILD_DIR}/ ...")
+    for name in targets:
+        package_lambda(name)
+
+    print("\nDone.")
+
+
+if __name__ == "__main__":
+    main()
 </file>
 
 <file path="src/lambdas/validate_order/handler.py">
@@ -7253,6 +7749,154 @@ def to_order_response(order: Order) -> dict:
     return data
 </file>
 
+<file path="src/modules/orders/repository/order_repository.py">
+"""Read/write access to orders stored in the database (FDS-21, FDS-24)."""
+
+from __future__ import annotations
+
+from src.modules.orders.model.delivery_address import DeliveryAddress
+from src.modules.orders.model.order import Order
+from src.modules.orders.model.order_item import OrderItem
+from src.modules.orders.model.order_status import OrderStatus
+from src.modules.orders.model.order_status_history import OrderStatusHistoryEntry
+from src.shared.db import supabase_client
+from src.shared.errors.app_error import AppError
+
+_ORDERS_TABLE = "orders"
+_ITEMS_TABLE = "order_items"
+_HISTORY_TABLE = "order_status_history"
+
+
+def get_orders_by_customer(customer_id: str) -> list[Order]:
+    client = supabase_client.get_client()
+    resp = (
+        client.table(_ORDERS_TABLE)
+        .select(f"*, {_ITEMS_TABLE}(*), {_HISTORY_TABLE}(*)")
+        .eq("customer_id", customer_id)
+        .order("created_at", desc=True)
+        .execute()
+    )
+    return [_row_to_order(row) for row in (resp.data or [])]
+
+
+def get_order_by_id(order_id: str) -> Order | None:
+    client = supabase_client.get_client()
+    resp = (
+        client.table(_ORDERS_TABLE)
+        .select(f"*, {_ITEMS_TABLE}(*), {_HISTORY_TABLE}(*)")
+        .eq("id", order_id)
+        .limit(1)
+        .execute()
+    )
+    rows = resp.data or []
+    return _row_to_order(rows[0]) if rows else None
+
+
+def insert_order(order: Order) -> None:
+    """Persist a new order (FDS-24).
+
+    Calls the ``upsert_order_with_items`` Postgres RPC function to atomically
+    upsert the order row, its line items, and the initial status history entry.
+    The RPC is idempotent — safe to replay from Step Functions.
+
+    Deploy the function first:
+        psql < scripts/order_items_rpc.sql
+    """
+    client = supabase_client.get_client()
+    payload = {
+        "order_row": {
+            "id": order.order_id,
+            "customer_id": order.customer_id,
+            "venue_id": order.restaurant_id,
+            "delivery_address_id": order.delivery_address.address_id,
+            "status": order.status.value,
+            "subtotal": order.subtotal,
+            "delivery_fee": 0,
+            "total": order.subtotal,
+            "currency": order.currency,
+            "created_at": order.created_at,
+            "updated_at": order.updated_at,
+        },
+        "items": [
+            {
+                "menu_item_id": item.menu_item_id,
+                "menu_item_name": item.name,
+                "unit_price": item.unit_price,
+                "quantity": item.quantity,
+                "line_total": item.line_total,
+            }
+            for item in order.items
+        ],
+    }
+    client.rpc("upsert_order_with_items", {"payload": payload}).execute()
+
+
+def _row_to_order(row: dict) -> Order:
+    _require_columns(row, "id", "customer_id", "venue_id", "delivery_address_id")
+    order_id = row["id"]
+
+    # Items from order_items table (PostgREST resource embedding).
+    item_rows = row.get(_ITEMS_TABLE) or []
+    if not item_rows:
+        raise AppError(500, "INVALID_ORDER_DATA", f"Order {order_id} has no items")
+    items = []
+    for i in item_rows:
+        _require_columns(i, "menu_item_id", "menu_item_name", "quantity", "unit_price")
+        items.append(
+            OrderItem(
+                menu_item_id=i["menu_item_id"],
+                name=i["menu_item_name"],
+                quantity=int(i["quantity"]),
+                unit_price=float(i["unit_price"]),
+                line_total=float(i.get("line_total", 0.0)),
+            )
+        )
+
+    # Full address is resolved via a join to the addresses table (FDS-25).
+    # For now we only carry the FK.
+    delivery_address = DeliveryAddress(
+        address_id=row["delivery_address_id"],
+    )
+
+    # Deserialize status_history from order_status_history embedding.
+    history_rows = row.get(_HISTORY_TABLE) or []
+    status_history = []
+    for h in history_rows:
+        _require_columns(h, "to_status", "created_at")
+        status_history.append(
+            OrderStatusHistoryEntry(
+                status=OrderStatus(h["to_status"]),
+                changed_at=h["created_at"],
+                reason=h.get("note"),
+            )
+        )
+
+    return Order(
+        order_id=order_id,
+        customer_id=row["customer_id"],
+        restaurant_id=row["venue_id"],
+        items=items,
+        delivery_address=delivery_address,
+        status=OrderStatus(row.get("status", OrderStatus.CREATED.value)),
+        subtotal=float(row.get("subtotal", 0.0)),
+        currency=str(row.get("currency", "ILS")),
+        status_history=status_history,
+        created_at=row.get("created_at"),
+        updated_at=row.get("updated_at"),
+    )
+
+
+def _require_columns(row: dict, *names: str) -> None:
+    """Raise AppError if any required column is missing from the row."""
+    for name in names:
+        if name not in row:
+            raise AppError(
+                500,
+                "INVALID_ORDER_DATA",
+                f"Order row is missing required column '{name}'",
+            )
+</file>
+
 <file path=".github/workflows/deploy-step-functions.yml">
 name: Deploy Step Functions
 
@@ -7294,6 +7938,20 @@ jobs:
           set -euo pipefail
           python scripts/package_lambdas.py
 
+      - name: Publish Lambda Layer
+        id: layer
+        run: |
+          set -euo pipefail
+          LAYER_ARN=$(aws lambda publish-layer-version \
+            --layer-name order-service-deps \
+            --description "Shared runtime deps (pydantic, sqlalchemy, supabase, psycopg, httpx)" \
+            --zip-file fileb://build/layer.zip \
+            --compatible-runtimes python3.12 \
+            --compatible-architectures x86_64 \
+            --query 'LayerVersionArn' --output text --no-cli-pager)
+          echo "Published layer: ${LAYER_ARN}"
+          echo "layer_arn=${LAYER_ARN}" >> "${GITHUB_OUTPUT}"
+
       - name: Deploy Lambdas
         id: deploy-lambdas
         run: |
@@ -7301,6 +7959,7 @@ jobs:
 
           DEPLOYABLE=("validate_order" "resolve_delivery_address" "create_order_step" "create_payment_session" "paypal_webhook" "verify_payment" "mark_payment_result" "publish_order_event")
           ROLE_ARN="${{ secrets.LAMBDA_EXECUTION_ROLE_ARN }}"
+          LAYER_ARN="${{ steps.layer.outputs.layer_arn }}"
 
           # Init summary file for created-vs-updated tracking
           SUMMARY_FILE="deploy-summary.txt"
@@ -7359,6 +8018,7 @@ jobs:
             aws lambda update-function-configuration \
               --function-name "${func}" \
               --environment "{\"Variables\": ${MERGED_VARS}}" \
+              --layers "${LAYER_ARN}" \
               --no-cli-pager
 
             echo "${func}: ${ACTION}" >> "${SUMMARY_FILE}"
@@ -7521,154 +8181,6 @@ jobs:
               echo "| Lambda \`create_order_step\` | deployed |"
             fi
           } >> "${GITHUB_STEP_SUMMARY}"
-</file>
-
-<file path="src/modules/orders/repository/order_repository.py">
-"""Read/write access to orders stored in the database (FDS-21, FDS-24)."""
-
-from __future__ import annotations
-
-from src.modules.orders.model.delivery_address import DeliveryAddress
-from src.modules.orders.model.order import Order
-from src.modules.orders.model.order_item import OrderItem
-from src.modules.orders.model.order_status import OrderStatus
-from src.modules.orders.model.order_status_history import OrderStatusHistoryEntry
-from src.shared.db import supabase_client
-from src.shared.errors.app_error import AppError
-
-_ORDERS_TABLE = "orders"
-_ITEMS_TABLE = "order_items"
-_HISTORY_TABLE = "order_status_history"
-
-
-def get_orders_by_customer(customer_id: str) -> list[Order]:
-    client = supabase_client.get_client()
-    resp = (
-        client.table(_ORDERS_TABLE)
-        .select(f"*, {_ITEMS_TABLE}(*), {_HISTORY_TABLE}(*)")
-        .eq("customer_id", customer_id)
-        .order("created_at", desc=True)
-        .execute()
-    )
-    return [_row_to_order(row) for row in (resp.data or [])]
-
-
-def get_order_by_id(order_id: str) -> Order | None:
-    client = supabase_client.get_client()
-    resp = (
-        client.table(_ORDERS_TABLE)
-        .select(f"*, {_ITEMS_TABLE}(*), {_HISTORY_TABLE}(*)")
-        .eq("id", order_id)
-        .limit(1)
-        .execute()
-    )
-    rows = resp.data or []
-    return _row_to_order(rows[0]) if rows else None
-
-
-def insert_order(order: Order) -> None:
-    """Persist a new order (FDS-24).
-
-    Calls the ``upsert_order_with_items`` Postgres RPC function to atomically
-    upsert the order row, its line items, and the initial status history entry.
-    The RPC is idempotent — safe to replay from Step Functions.
-
-    Deploy the function first:
-        psql < scripts/order_items_rpc.sql
-    """
-    client = supabase_client.get_client()
-    payload = {
-        "order_row": {
-            "id": order.order_id,
-            "customer_id": order.customer_id,
-            "venue_id": order.restaurant_id,
-            "delivery_address_id": order.delivery_address.address_id,
-            "status": order.status.value,
-            "subtotal": order.subtotal,
-            "delivery_fee": 0,
-            "total": order.subtotal,
-            "currency": order.currency,
-            "created_at": order.created_at,
-            "updated_at": order.updated_at,
-        },
-        "items": [
-            {
-                "menu_item_id": item.menu_item_id,
-                "menu_item_name": item.name,
-                "unit_price": item.unit_price,
-                "quantity": item.quantity,
-                "line_total": item.line_total,
-            }
-            for item in order.items
-        ],
-    }
-    client.rpc("upsert_order_with_items", {"payload": payload}).execute()
-
-
-def _row_to_order(row: dict) -> Order:
-    _require_columns(row, "id", "customer_id", "venue_id", "delivery_address_id")
-    order_id = row["id"]
-
-    # Items from order_items table (PostgREST resource embedding).
-    item_rows = row.get(_ITEMS_TABLE) or []
-    if not item_rows:
-        raise AppError(500, "INVALID_ORDER_DATA", f"Order {order_id} has no items")
-    items = []
-    for i in item_rows:
-        _require_columns(i, "menu_item_id", "menu_item_name", "quantity", "unit_price")
-        items.append(
-            OrderItem(
-                menu_item_id=i["menu_item_id"],
-                name=i["menu_item_name"],
-                quantity=int(i["quantity"]),
-                unit_price=float(i["unit_price"]),
-                line_total=float(i.get("line_total", 0.0)),
-            )
-        )
-
-    # Full address is resolved via a join to the addresses table (FDS-25).
-    # For now we only carry the FK.
-    delivery_address = DeliveryAddress(
-        address_id=row["delivery_address_id"],
-    )
-
-    # Deserialize status_history from order_status_history embedding.
-    history_rows = row.get(_HISTORY_TABLE) or []
-    status_history = []
-    for h in history_rows:
-        _require_columns(h, "to_status", "created_at")
-        status_history.append(
-            OrderStatusHistoryEntry(
-                status=OrderStatus(h["to_status"]),
-                changed_at=h["created_at"],
-                reason=h.get("note"),
-            )
-        )
-
-    return Order(
-        order_id=order_id,
-        customer_id=row["customer_id"],
-        restaurant_id=row["venue_id"],
-        items=items,
-        delivery_address=delivery_address,
-        status=OrderStatus(row.get("status", OrderStatus.CREATED.value)),
-        subtotal=float(row.get("subtotal", 0.0)),
-        currency=str(row.get("currency", "ILS")),
-        status_history=status_history,
-        created_at=row.get("created_at"),
-        updated_at=row.get("updated_at"),
-    )
-
-
-def _require_columns(row: dict, *names: str) -> None:
-    """Raise AppError if any required column is missing from the row."""
-    for name in names:
-        if name not in row:
-            raise AppError(
-                500,
-                "INVALID_ORDER_DATA",
-                f"Order row is missing required column '{name}'",
-            )
 </file>
 
 <file path="AGENTS.md">
@@ -8106,8 +8618,120 @@ FDS-25 snapshot (2026-07-12):
 
 ---
 
+## 2026-07-21 — DeepSeek (deepseek-v4-pro) — FDS-27 validate order_id as UUID in mark_payment_result
+
+- **Цель:** добавить валидацию order_id как UUID в schema mark_payment_result.
+- **Изменено:**
+  - `src/lambdas/mark_payment_result/schema.py` — добавлен `field_validator("order_id")` с `uuid.UUID(v)`, order_id остаётся str.
+  - `tests/test_mark_payment_result.py` — фикстуры переведены на валидный UUID, добавлены test_valid_uuid_order_id_passes и test_non_uuid_order_id_raises_400.
+- **Открыто:** —
+- **Дальше:** —
+
+---
+
+---
+
+## 2026-07-21 — DeepSeek (deepseek-v4-pro) — document API endpoints in readme
+
+- **Цель:** задокументировать все HTTP-эндпоинты и Step Functions-шаги в readme.md.
+- **Изменено:**
+  - `readme.md` — добавлены секции «API Endpoints» (таблица Method | Path | Description) и «Step Functions steps» (order-creation + payment-confirmation).
+- **Открыто:** —
+- **Дальше:** —
+
+---
+
+## 2026-07-21 — DeepSeek (deepseek-v4-pro) — FDS-27 stricter shared PayPal-ID format
+
+- **Цель:** создать общий валидатор формата PayPal ID (не UUID).
+- **Изменено:**
+  - `src/shared/payments/validators.py` (новый) — `PaypalId` (Annotated, min_length=5, max_length=36, alphanumeric pattern).
+  - `mark_payment_result/schema.py`, `verify_payment/schema.py` — `paypal_order_id` → `PaypalId`.
+  - `paypal_webhook/schema.py` — `WebhookResource.id` → `PaypalId`.
+  - Все тестовые фикстуры (`PP-42`, `PAYPAL-ORDER-42`) заменены на реалистичные PayPal ID (`5O190127TN364715T`).
+  - `test_mark_payment_result.py` — добавлены тесты на too-short и non-alphanumeric PayPal ID.
+- **Открыто:** —
+- **Дальше:** commit 2 (extract validated_input decorator).
+
+---
+
+## 2026-07-21 — DeepSeek (deepseek-v4-pro) — FDS-27 extract validated_input decorator
+
+- **Цель:** убрать повторяющийся try/except ValidationError из SM-task handler-ов.
+- **Изменено:**
+  - `src/shared/validation.py` (новый) — декоратор `validated_input(model)`:
+    валидирует event через Pydantic, передаёт обработанную модель в handler,
+    при ошибке → AppError(400, "INVALID_INPUT").
+  - `verify_payment/handler.py`, `mark_payment_result/handler.py`,
+    `publish_order_event/handler.py`, `create_payment_session/handler.py` —
+    применён `@validated_input(...)`, удалён inline try/except ValidationError.
+    `mark_payment_result` также потерял неиспользуемый импорт `AppError`.
+  - `paypal_webhook/handler.py` НЕ тронут (другой input shape и INVALID_WEBHOOK_PAYLOAD).
+- **Открыто:** —
+- **Дальше:** commit 3 (PAID vs ALREADY_PAID comment).
+
+---
+
+## 2026-07-21 — DeepSeek (deepseek-v4-pro) — FDS-27 explain PAID vs ALREADY_PAID grouping
+
+- **Цель:** задокументировать разницу между PAID и ALREADY_PAID для будущих разработчиков.
+- **Изменено:**
+  - `publish_order_event/handler.py` — добавлен комментарий над `_PAID_STATUSES`:
+    PAID = paid by this execution, ALREADY_PAID = paid by earlier retry;
+    оба должны эмитить order.paid.
+- **Открыто:** —
+- **Дальше:** —
+
+---
+
+---
+
+## 2026-07-21 — DeepSeek (deepseek-v4-pro) — FDS-27 native UUID order_id, serialize as str
+
+- **Цель:** заменить кастомный field_validator order_id на нативный тип UUID, конвертировать в str на границах JSON.
+- **Изменено:**
+  - `mark_payment_result/schema.py` — order_id: UUID (был str + field_validator), убраны импорты uuid/field_validator.
+  - `publish_order_event/schema.py` — order_id: UUID (был str + min_length=1).
+  - `mark_payment_result/handler.py` — str(event.order_id) в return dict.
+  - `publish_order_event/handler.py` — str(event.order_id) в EventBridge detail и return dict.
+  - `test_mark_payment_result.py` — добавлен test_result_is_json_serializable (json.dumps + round-trip).
+  - `test_publish_order_event.py` — фикстуры на валидный UUID, добавлены test_non_uuid_order_id_raises_400 и test_result_is_json_serializable.
+- **Открыто:** —
+- **Дальше:** —
+
+---
+
+## 2026-07-21 — DeepSeek (deepseek-v4-pro) — FDS-29 deps as shared Lambda Layer
+
+- **Цель:** перестать бандлить runtime-зависимости в каждый lambda zip; деплоить deps один раз как Lambda Layer, а function zips сделать src/-only.
+- **Изменено:**
+  - `scripts/package_lambdas.py` — полностью переписан: `build_layer()` создаёт `build/layer.zip` (deps под `python/`), `package_lambda()` пакует только `src/`. Добавлен флаг `--layer`.
+  - `.github/workflows/deploy-step-functions.yml` — новый шаг «Publish Lambda Layer» между Package и Deploy Lambdas; `LAYER_ARN` передаётся в `update-function-configuration` через `--layers`.
+- **Открыто:** —
+- **Дальше:** —
+
+---
+
+## 2026-07-21 — DeepSeek (deepseek-v4-pro) — FDS-27 OpenAPI docs
+
+- **Цель:** добавить машиночитаемую OpenAPI 3.0 спецификацию Order Service API.
+- **Изменено:**
+  - `docs/openapi.yaml` (новый) — спека для всех HTTP-эндпоинтов.
+  - `readme.md` — ссылка на `docs/openapi.yaml` над таблицей API Endpoints.
+- **Открыто:** —
+- **Дальше:** поддерживать спеку в актуальном состоянии.
+
+---
+
 ## Лента
 
+- 2026-07-21 [DeepSeek/deepseek-v4-pro] FDS-29: deps moved from per-function zips to a shared Lambda Layer (FDS-29-lambda-layer)
+- 2026-07-21 [DeepSeek/deepseek-v4-pro] FDS-27: add OpenAPI 3.0 spec for Order Service endpoints (docs/openapi.yaml)
+- 2026-07-21 [DeepSeek/deepseek-v4-pro] FDS-27: native UUID order_id type, serialize as str at JSON boundaries
+- 2026-07-21 [DeepSeek/deepseek-v4-pro] FDS-27: document all API endpoints and Step Functions steps in readme.md
+- 2026-07-21 [DeepSeek/deepseek-v4-pro] FDS-27: explain PAID vs ALREADY_PAID grouping
+- 2026-07-21 [DeepSeek/deepseek-v4-pro] FDS-27: extract input validation into a decorator (validated_input)
+- 2026-07-21 [DeepSeek/deepseek-v4-pro] FDS-27: stricter shared PayPal-ID format validator (validators.py)
 - 2026-07-19 [DeepSeek/deepseek-v4-pro] FDS-27: paypal_webhook starts payment-confirmation SM + per-lambda env vars in CI
 - 2026-07-19 [GLM/glm-5.2] FDS-27 P2-C13: deploy part-2 lambdas and payment-confirmation state machine
 - 2026-07-19 [GLM/glm-5.2] FDS-27 P2-C12: wire publish_order_event into payment confirmation state machine
@@ -8147,6 +8771,7 @@ FDS-25 snapshot (2026-07-12):
 - 2026-07-16 [DeepSeek/deepseek-v4-pro] FDS-27 R5: map CreatePaymentSession input in ASL (subtotal->amount) so SM#1 runs end-to-end
 - 2026-07-16 [DeepSeek/deepseek-v4-pro] FDS-27 R6: drop redundant amount before-validator (Pydantic v2 coerces Decimal natively)
 - 2026-07-18 [DeepSeek/deepseek-v4-pro] FDS-27 P2-C6: add paypal_webhook lambda with signature verification
+- 2026-07-21 [DeepSeek/deepseek-v4-pro] FDS-27: add OpenAPI 3.0 spec for Order Service endpoints (docs/openapi.yaml)
 </file>
 
 </files>

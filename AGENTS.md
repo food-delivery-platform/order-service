@@ -537,6 +537,21 @@ FDS-25 snapshot (2026-07-12):
 
 ---
 
+## 2026-07-22 — DeepSeek (deepseek-v4-pro) — FDS-32 auto-capture PayPal orders
+
+- **Цель:** закрыть gap между APPROVED и COMPLETED в flow PayPal-платежа:
+  create_order использует intent=CAPTURE, но никто не делает capture;
+  verify_payment требует COMPLETED — платёж никогда не мог settle.
+- **Изменено:**
+  - `src/shared/payments/paypal_client.py` — добавлен `capture_order()` (метод класса + module-level shim): идемпотентный захват approved PayPal order (200/201 → успех, 422 ORDER_ALREADY_CAPTURED → idempotent success, остальное → PayPalError).
+  - `src/lambdas/verify_payment/handler.py` — шаг 3 переписан: fetch → capture if APPROVED → re-fetch → verify. PayPalError и непредвиденные ошибки логируются и пробрасываются как раньше.
+  - `tests/shared/payments/test_paypal_capture.py` (новый) — 3 hermetic-теста: capture success, already-captured idempotency, error raises PayPalError.
+  - `tests/lambdas/verify_payment/test_verify_capture.py` (новый) — 2 hermetic-теста: capture when APPROVED (side_effect для get_order), skip capture when COMPLETED (assert_not_called).
+- **Открыто:** —
+- **Дальше:** —
+
+---
+
 ## 2026-07-22 — DeepSeek (deepseek-v4-pro) — FDS-30 payment persist fix
 
 - **Цель:** исправить персистенцию create_payment_session: (1) привязать status к Postgres enum типу payment_status, (2) собирать DB DSN из полей DB_HOST/DB_USER/DB_PASS/DB_NAME/DB_PORT когда database_url отсутствует.
@@ -550,6 +565,7 @@ FDS-25 snapshot (2026-07-12):
 
 ## Лента
 
+- 2026-07-22 [DeepSeek/deepseek-v4-pro] FDS-32: verify_payment now captures approved PayPal orders (APPROVED -> COMPLETED) before verifying; added paypal_client.capture_order (idempotent on ORDER_ALREADY_CAPTURED).
 - 2026-07-22 [DeepSeek/deepseek-v4-pro] FDS-30: fix payment status to Postgres enum, assemble DB DSN from DB_* fields when database_url missing (FDS-30-payment-persist-fix)
 - 2026-07-21 [DeepSeek/deepseek-v4-pro] FDS-29: deps moved from per-function zips to a shared Lambda Layer (FDS-29-lambda-layer)
 - 2026-07-21 [DeepSeek/deepseek-v4-pro] FDS-27: add OpenAPI 3.0 spec for Order Service endpoints (docs/openapi.yaml)
