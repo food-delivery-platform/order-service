@@ -537,8 +537,20 @@ FDS-25 snapshot (2026-07-12):
 
 ---
 
+## 2026-07-22 — DeepSeek (deepseek-v4-pro) — FDS-30 payment persist fix
+
+- **Цель:** исправить персистенцию create_payment_session: (1) привязать status к Postgres enum типу payment_status, (2) собирать DB DSN из полей DB_HOST/DB_USER/DB_PASS/DB_NAME/DB_PORT когда database_url отсутствует.
+- **Изменено:**
+  - `src/shared/db/engine.py` — `_dsn()` переписан: сначала database_url (secret/ env), затем сборка из DB_* полей с quote_plus; Column status теперь использует payment_status ENUM (create_type=False); добавлен импорт ENUM и quote_plus.
+  - `tests/shared/db/test_engine_dsn.py` (новый) — 9 hermetic-тестов _dsn(): database_url precedence, сборка из полей, mixed secret+env, quote_plus encoding, partial config → RuntimeError.
+- **Открыто:** —
+- **Дальше:** —
+
+---
+
 ## Лента
 
+- 2026-07-22 [DeepSeek/deepseek-v4-pro] FDS-30: fix payment status to Postgres enum, assemble DB DSN from DB_* fields when database_url missing (FDS-30-payment-persist-fix)
 - 2026-07-21 [DeepSeek/deepseek-v4-pro] FDS-29: deps moved from per-function zips to a shared Lambda Layer (FDS-29-lambda-layer)
 - 2026-07-21 [DeepSeek/deepseek-v4-pro] FDS-27: add OpenAPI 3.0 spec for Order Service endpoints (docs/openapi.yaml)
 - 2026-07-21 [DeepSeek/deepseek-v4-pro] FDS-27: native UUID order_id type, serialize as str at JSON boundaries
