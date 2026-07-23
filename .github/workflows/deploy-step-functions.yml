@@ -44,7 +44,7 @@ jobs:
           set -euo pipefail
           LAYER_ARN=$(aws lambda publish-layer-version \
             --layer-name order-service-deps \
-            --description "Shared runtime deps (pydantic, sqlalchemy, supabase, psycopg, httpx)" \
+            --description "Shared runtime deps (pydantic, sqlalchemy, psycopg, httpx)" \
             --zip-file fileb://build/layer.zip \
             --compatible-runtimes python3.12 \
             --compatible-architectures x86_64 \

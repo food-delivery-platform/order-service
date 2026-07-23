@@ -28,8 +28,8 @@ class TestGetServiceSecret:
             "arn:aws:secretsmanager:eu-west-1:123456789:secret:test",
         )
         secret_body = {
-            "SUPABASE_URL": "https://db.example.com",
-            "SUPABASE_SERVICE_ROLE_KEY": "sk-xyz",
+            "DATABASE_URL": "postgresql://user:pass@db.example.com:5432/db",
+            "DB_HOST": "db.example.com",
         }
 
         with patch("boto3.client") as mock_boto:
