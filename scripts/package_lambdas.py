@@ -43,6 +43,8 @@ DEPLOYABLE = [
     "verify_payment",
     "mark_payment_result",
     "publish_order_event",
+    "get_customer_orders",
+    "get_order_by_id",
 ]
 
 EXCLUDED_SUFFIXES = {".pyc", ".pyo", ".pyd"}
