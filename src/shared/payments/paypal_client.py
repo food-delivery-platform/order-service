@@ -57,6 +57,11 @@ def _base_url() -> str:
     return url.rstrip("/")
 
 
+def _frontend_base_url() -> str:
+    url = _get_config("CUSTOMER_FRONTEND_BASE_URL", "http://localhost:3000")
+    return url.rstrip("/")
+
+
 # ---------------------------------------------------------------------------
 # PayPalClient
 # ---------------------------------------------------------------------------
@@ -149,6 +154,7 @@ class PayPalClient:
         token = self._get_access_token()
         url = f"{_base_url()}/v2/checkout/orders"
 
+        frontend_base = _frontend_base_url()
         payload = {
             "intent": "CAPTURE",
             "purchase_units": [
@@ -160,6 +166,10 @@ class PayPalClient:
                     },
                 }
             ],
+            "application_context": {
+                "return_url": f"{frontend_base}/orders/{order_id}?payment=success",
+                "cancel_url": f"{frontend_base}/orders/{order_id}?payment=cancelled",
+            },
         }
 
         with httpx.Client() as client:

@@ -383,6 +383,55 @@ class TestCreateOrder:
         assert payload["purchase_units"][0]["amount"]["currency_code"] == "EUR"
         assert payload["intent"] == "CAPTURE"
 
+    def test_application_context_uses_configured_frontend_base_url(
+        self, paypal_env, monkeypatch
+    ):
+        monkeypatch.setenv("CUSTOMER_FRONTEND_BASE_URL", "https://app.example.com")
+        token_resp = _mock_response(200, {"access_token": "tok-1", "expires_in": 3600})
+        order_resp = _mock_response(201, {"id": "PP-1", "status": "CREATED", "links": []})
+
+        mock_http = _setup_http_mock(
+            ("POST", "/v1/oauth2/token", token_resp),
+            ("POST", "/v2/checkout/orders", order_resp),
+        )
+
+        with patch("httpx.Client") as mock_client_cls:
+            mock_client_cls.return_value.__enter__.return_value = mock_http
+            client = PayPalClient()
+            client.create_order("ord-77", Decimal("10.00"), "ILS")
+
+        order_call = [
+            c for c in mock_http.post.call_args_list if "/v2/checkout/orders" in c[0][0]
+        ][0]
+        payload = order_call[1]["json"]
+        assert payload["application_context"] == {
+            "return_url": "https://app.example.com/orders/ord-77?payment=success",
+            "cancel_url": "https://app.example.com/orders/ord-77?payment=cancelled",
+        }
+
+    def test_application_context_defaults_to_localhost(self, paypal_env, monkeypatch):
+        monkeypatch.delenv("CUSTOMER_FRONTEND_BASE_URL", raising=False)
+        token_resp = _mock_response(200, {"access_token": "tok-1", "expires_in": 3600})
+        order_resp = _mock_response(201, {"id": "PP-1", "status": "CREATED", "links": []})
+
+        mock_http = _setup_http_mock(
+            ("POST", "/v1/oauth2/token", token_resp),
+            ("POST", "/v2/checkout/orders", order_resp),
+        )
+
+        with patch("httpx.Client") as mock_client_cls:
+            mock_client_cls.return_value.__enter__.return_value = mock_http
+            client = PayPalClient()
+            client.create_order("ord-1", Decimal("10.00"), "ILS")
+
+        order_call = [
+            c for c in mock_http.post.call_args_list if "/v2/checkout/orders" in c[0][0]
+        ][0]
+        payload = order_call[1]["json"]
+        assert payload["application_context"]["return_url"].startswith(
+            "http://localhost:3000/orders/ord-1"
+        )
+
 
 # ---------------------------------------------------------------------------
 # get_order

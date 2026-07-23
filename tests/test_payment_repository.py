@@ -14,6 +14,7 @@ from sqlalchemy.exc import IntegrityError
 from src.shared.payments.models import PaymentSession, PaymentStatus
 from src.shared.payments.payment_repository import (
     create_payment,
+    get_by_order_id,
     get_by_provider_ref,
     mark_failed,
     mark_paid,
@@ -227,6 +228,33 @@ def test_get_by_provider_ref_not_found(mock_get_engine):
     _setup_select_row(mock_conn, None)
 
     result = get_by_provider_ref("paypal", "DOES-NOT-EXIST")
+    assert result is None
+
+
+# ---------------------------------------------------------------------------
+# get_by_order_id
+# ---------------------------------------------------------------------------
+
+
+@patch("src.shared.payments.payment_repository.get_engine")
+def test_get_by_order_id_found(mock_get_engine):
+    mock_engine, mock_conn = _mock_engine()
+    mock_get_engine.return_value = mock_engine
+    _setup_select_row(mock_conn, _payment_row(order_id="ord-1"))
+
+    result = get_by_order_id("ord-1")
+    assert result is not None
+    assert result.order_id == "ord-1"
+    assert result.approval_url == "https://paypal.com/approve"
+
+
+@patch("src.shared.payments.payment_repository.get_engine")
+def test_get_by_order_id_not_found(mock_get_engine):
+    mock_engine, mock_conn = _mock_engine()
+    mock_get_engine.return_value = mock_engine
+    _setup_select_row(mock_conn, None)
+
+    result = get_by_order_id("does-not-exist")
     assert result is None
 
 
