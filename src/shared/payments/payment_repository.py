@@ -109,6 +109,25 @@ def get_by_provider_ref(provider: str, provider_ref: str) -> PaymentSession | No
         return _row_to_payment(row)
 
 
+def get_by_order_id(order_id: str) -> PaymentSession | None:
+    """Look up the most recent payment session for an order.
+
+    Returns ``None`` when no payment row exists for this order yet (e.g. the
+    order-creation state machine hasn't reached ``CreatePaymentSession`` yet).
+    """
+    with get_engine().connect() as conn:
+        stmt = (
+            select(payments_table)
+            .where(payments_table.c.order_id == order_id)
+            .order_by(payments_table.c.created_at.desc())
+            .limit(1)
+        )
+        row = conn.execute(stmt).fetchone()
+        if row is None:
+            return None
+        return _row_to_payment(row)
+
+
 def mark_paid(provider: str, provider_ref: str) -> bool:
     """Conditionally mark a payment as SUCCEEDED (atomic, race-safe).
 

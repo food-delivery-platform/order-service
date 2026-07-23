@@ -194,6 +194,12 @@ components:
         total: { type: number }
         createdAt: { type: string, format: date-time, nullable: true }
         updatedAt: { type: string, format: date-time, nullable: true }
+        approvalUrl:
+          type: string
+          nullable: true
+          description: >
+            PayPal checkout URL to redirect the customer to. Null until the
+            order-creation state machine's CreatePaymentSession step has run.
     OrderStatusResponse:
       type: object
       properties:

@@ -57,6 +57,7 @@ class OrderResponse:
     total: float = 0.0
     created_at: str | None = None
     updated_at: str | None = None
+    approval_url: str | None = None
 
 
 @dataclass
