@@ -244,6 +244,57 @@ class PayPalClient:
             "currency": currency,
         }
 
+    def capture_order(self, paypal_order_id: str) -> dict:
+        """Capture an approved PayPal order (APPROVED -> COMPLETED).
+
+        Idempotent: an already-captured order returns HTTP 422 with issue
+        ``ORDER_ALREADY_CAPTURED``; that is treated as success.
+
+        Returns:
+            dict with key ``status`` (the order status, e.g. ``"COMPLETED"``).
+
+        Raises:
+            PayPalError: on any other non-2xx response.
+        """
+        token = self._get_access_token()
+        url = f"{_base_url()}/v2/checkout/orders/{paypal_order_id}/capture"
+
+        with httpx.Client() as client:
+            resp = client.post(
+                url,
+                json={},
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Content-Type": "application/json",
+                },
+            )
+
+        if resp.status_code in (200, 201):
+            data = resp.json()
+            return {"status": data.get("status", "")}
+
+        # Idempotency: an already-captured order returns 422 ORDER_ALREADY_CAPTURED.
+        if resp.status_code == 422:
+            body = resp.json() if resp.text else {}
+            issues = {d.get("issue") for d in body.get("details", [])}
+            if "ORDER_ALREADY_CAPTURED" in issues:
+                logger.info(
+                    "PayPal order %s already captured — treating as success",
+                    paypal_order_id,
+                )
+                return {"status": "COMPLETED"}
+
+        logger.error(
+            "PayPal capture_order failed: HTTP %s %s",
+            resp.status_code,
+            resp.text,
+        )
+        raise PayPalError(
+            resp.status_code,
+            f"Failed to capture PayPal order {paypal_order_id}",
+            resp.json() if resp.text else None,
+        )
+
     def verify_webhook_signature(self, headers: dict, body: str) -> bool:
         """Verify a PayPal webhook notification signature.
 
@@ -328,6 +379,11 @@ def get_order(paypal_order_id: str) -> dict:
     For reuse across calls hold a ``PayPalClient`` instance directly.
     """
     return PayPalClient().get_order(paypal_order_id)
+
+
+def capture_order(paypal_order_id: str) -> dict:
+    """Capture a PayPal order (module-level convenience wrapper)."""
+    return PayPalClient().capture_order(paypal_order_id)
 
 
 def verify_webhook_signature(headers: dict, body: str) -> bool:

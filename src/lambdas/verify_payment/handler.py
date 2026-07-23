@@ -45,24 +45,29 @@ def handler(event, context=None):
         )
 
     # ------------------------------------------------------------------
-    # 3. Fetch PayPal order details
+    # 3. Fetch PayPal order; capture it if the buyer approved but it has
+    #    not been captured yet (APPROVED -> COMPLETED).
     # ------------------------------------------------------------------
     try:
         pp_order = paypal_client.get_order(paypal_order_id)
+        if pp_order.get("status") == "APPROVED":
+            logger.info("PayPal order %s is APPROVED — capturing now", paypal_order_id)
+            paypal_client.capture_order(paypal_order_id)
+            pp_order = paypal_client.get_order(paypal_order_id)
     except paypal_client.PayPalError:
         logger.exception(
-            "PayPal get_order failed for paypal_order_id=%s", paypal_order_id
+            "PayPal verify/capture failed for paypal_order_id=%s", paypal_order_id
         )
         raise
     except Exception as exc:
         logger.exception(
-            "PayPal get_order failed for paypal_order_id=%s with unexpected error",
+            "PayPal verify/capture failed for paypal_order_id=%s with unexpected error",
             paypal_order_id,
         )
         raise AppError(
             500,
             "PAYPAL_GET_ORDER_FAILED",
-            f"Unexpected error fetching PayPal order: {exc}",
+            f"Unexpected error verifying PayPal order: {exc}",
         ) from exc
 
     # ------------------------------------------------------------------
