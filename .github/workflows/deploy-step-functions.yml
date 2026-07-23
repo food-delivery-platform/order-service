@@ -57,7 +57,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          DEPLOYABLE=("validate_order" "resolve_delivery_address" "create_order_step" "create_payment_session" "paypal_webhook" "verify_payment" "mark_payment_result" "publish_order_event")
+          DEPLOYABLE=("validate_order" "resolve_delivery_address" "create_order_step" "create_payment_session" "paypal_webhook" "verify_payment" "mark_payment_result" "publish_order_event" "get_customer_orders" "get_order_by_id")
           ROLE_ARN="${{ secrets.LAMBDA_EXECUTION_ROLE_ARN }}"
           LAYER_ARN="${{ steps.layer.outputs.layer_arn }}"
 
@@ -126,6 +126,69 @@ jobs:
           done
 
           echo "summary_file=${SUMMARY_FILE}" >> "${GITHUB_OUTPUT}"
+
+      # TODO: temporary without autentication — routes are wired with no authorizer,
+      # anyone with the base URL can read any customer's orders. Add auth before wider rollout.
+      - name: Setup HTTP API Gateway
+        id: apigw
+        run: |
+          set -euo pipefail
+          API_NAME="order-service-http-api"
+          REGION="${{ secrets.AWS_REGION }}"
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text --no-cli-pager)
+
+          API_ID=$(aws apigatewayv2 get-apis \
+            --query "Items[?Name=='${API_NAME}'].ApiId" --output text --no-cli-pager)
+          if [ -z "$API_ID" ] || [ "$API_ID" = "None" ]; then
+            API_ID=$(aws apigatewayv2 create-api --name "$API_NAME" --protocol-type HTTP \
+              --query ApiId --output text --no-cli-pager)
+            echo "Created API ${API_ID}"
+          else
+            echo "Reusing API ${API_ID}"
+          fi
+
+          if ! aws apigatewayv2 get-stage --api-id "$API_ID" --stage-name '$default' --no-cli-pager &>/dev/null; then
+            aws apigatewayv2 create-stage --api-id "$API_ID" --stage-name '$default' --auto-deploy --no-cli-pager
+          fi
+
+          wire_route() {
+            local METHOD="$1" ROUTE_PATH="$2" FUNC="$3"
+            local ROUTE_KEY="${METHOD} ${ROUTE_PATH}"
+            local FUNC_ARN INT_ID EXISTS
+            FUNC_ARN=$(aws lambda get-function --function-name "$FUNC" \
+              --query 'Configuration.FunctionArn' --output text --no-cli-pager)
+
+            INT_ID=$(aws apigatewayv2 get-integrations --api-id "$API_ID" \
+              --query "Items[?IntegrationUri=='${FUNC_ARN}'].IntegrationId" --output text --no-cli-pager)
+            if [ -z "$INT_ID" ] || [ "$INT_ID" = "None" ]; then
+              INT_ID=$(aws apigatewayv2 create-integration --api-id "$API_ID" \
+                --integration-type AWS_PROXY --integration-uri "$FUNC_ARN" \
+                --payload-format-version 2.0 --query IntegrationId --output text --no-cli-pager)
+            fi
+
+            EXISTS=$(aws apigatewayv2 get-routes --api-id "$API_ID" \
+              --query "Items[?RouteKey=='${ROUTE_KEY}'].RouteId" --output text --no-cli-pager)
+            if [ -z "$EXISTS" ] || [ "$EXISTS" = "None" ]; then
+              aws apigatewayv2 create-route --api-id "$API_ID" \
+                --route-key "$ROUTE_KEY" --target "integrations/${INT_ID}" --no-cli-pager
+            fi
+
+            aws lambda add-permission --function-name "$FUNC" \
+              --statement-id "apigw-${FUNC}" --action lambda:InvokeFunction \
+              --principal apigateway.amazonaws.com \
+              --source-arn "arn:aws:execute-api:${REGION}:${ACCOUNT_ID}:${API_ID}/*/*" \
+              --no-cli-pager 2>/dev/null || echo "invoke permission already exists for ${FUNC}"
+          }
+
+          wire_route GET "/api/v1/orders" get_customer_orders
+          wire_route GET "/api/v1/orders/{orderId}" get_order_by_id
+
+          API_URL="https://${API_ID}.execute-api.${REGION}.amazonaws.com"
+          echo "api_url=${API_URL}" >> "${GITHUB_OUTPUT}"
+          echo "## 🌐 API Gateway" >> "${GITHUB_STEP_SUMMARY}"
+          echo "Base URL: ${API_URL}" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- GET ${API_URL}/api/v1/orders?customerId=..." >> "${GITHUB_STEP_SUMMARY}"
+          echo "- GET ${API_URL}/api/v1/orders/{orderId}" >> "${GITHUB_STEP_SUMMARY}"
 
       - name: Render ASL and deploy State Machine
         id: deploy-sm

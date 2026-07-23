@@ -565,7 +565,9 @@ FDS-25 snapshot (2026-07-12):
 
 ## Лента
 
+- FDS-31 — подняты read-эндпоинты через HTTP API Gateway: GET /api/v1/orders и GET /api/v1/orders/{orderId}.
 - 2026-07-22 [DeepSeek/deepseek-v4-pro] FDS-32: verify_payment now captures approved PayPal orders (APPROVED -> COMPLETED) before verifying; added paypal_client.capture_order (idempotent on ORDER_ALREADY_CAPTURED).
+- 2026-07-23 [DeepSeek/deepseek-v4-pro] FDS-31: deploy get_customer_orders & get_order_by_id lambdas; wire HTTP API Gateway (order-service-http-api) routes GET /api/v1/orders and GET /api/v1/orders/{orderId}; idempotent CLI step.
 - 2026-07-22 [DeepSeek/deepseek-v4-pro] FDS-30: fix payment status to Postgres enum, assemble DB DSN from DB_* fields when database_url missing (FDS-30-payment-persist-fix)
 - 2026-07-21 [DeepSeek/deepseek-v4-pro] FDS-29: deps moved from per-function zips to a shared Lambda Layer (FDS-29-lambda-layer)
 - 2026-07-21 [DeepSeek/deepseek-v4-pro] FDS-27: add OpenAPI 3.0 spec for Order Service endpoints (docs/openapi.yaml)
