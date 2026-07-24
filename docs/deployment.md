@@ -116,5 +116,5 @@ This is the role passed as `--role` when creating Lambda functions
 
 When `SERVICE_SECRET_ARN` is **not set**, `get_service_secret()` returns an empty
 dict and all configuration falls back to plain environment variables. No changes
-needed for local dev — just set `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`
-in your `.env` / shell as before.
+needed for local dev — just set `DATABASE_URL` (or `DB_HOST`/`DB_USER`/`DB_PASS`/`DB_NAME`)
+in your `.env` / shell as before (e.g. `DATABASE_URL` or `DB_HOST`/`DB_USER`/`DB_PASS`/`DB_NAME`).

@@ -2,12 +2,12 @@
 
 > **Проект:** `order-service` — Food Delivery Platform, сервис заказов.
 > **Ветка по умолчанию:** `FDS-24-order-creation-and-persistence` (актуальная на 2026-07-05).
-> **Язык:** Python 3.12+, AWS Lambda (без фреймворков), Supabase (Postgres).
+> **Язык:** Python 3.12+, AWS Lambda (без фреймворков), Supabase/Postgres (SQLAlchemy Core).
 
 Order Service управляет жизненным циклом заказа: создание, валидация корзины,
 оркестрация оплаты/доставки, отмена, чтение заказов клиента. Это набор Python
 Lambda-хендлеров, запускаемых через Step Functions и API Gateway. Хранилище —
-Supabase (Postgres), события — SNS/SQS, оркестрация — Step Functions.
+Supabase/Postgres через SQLAlchemy Core (FDS-33), события — SNS/SQS, оркестрация — Step Functions.
 
 ---
 
@@ -52,7 +52,7 @@ Supabase (Postgres), события — SNS/SQS, оркестрация — Step
 |---|---|---|
 | `aws/` | dynamodb, sns, sqs, step_functions clients | ✅ (стабы) |
 | `config/` | env loader | ✅ |
-| `db/` | supabase_client | ✅ (стаб) |
+| `db/` | engine.py (SQLAlchemy Core) | ✅ (FDS-27, FDS-33) |
 | `errors/` | AppError | ✅ |
 | `http/` | api_response helpers | ✅ |
 | `utils/` | ids (UUID-генератор) | ✅ |
@@ -232,6 +232,34 @@ Supabase (Postgres), события — SNS/SQS, оркестрация — Step
   - `scripts/invoke_local.py` — docstring обновлён на новый путь к events.
 - **Открыто:** —
 - **Дальше:** перевод на SQLAlchemy (убрать Supabase), process_payment.
+
+---
+
+## 2026-07-23 — DeepSeek (deepseek-v4-pro) — FDS-33 drop supabase-py, use SQLAlchemy for orders
+
+- **Цель:** механическая замена supabase-py на SQLAlchemy Core в order_repository
+  и address_repository, удаление библиотеки supabase из проекта.
+- **Изменено:**
+  - `src/shared/db/engine.py` — добавлены `order_status` ENUM, таблицы
+    `orders_table` / `order_items_table` / `order_status_history_table` /
+    `addresses_table`. Engine и payments_table без изменений.
+  - `src/modules/orders/repository/order_repository.py` — переписан на
+    SQLAlchemy Core: чтение через 3 SELECT (orders + items + history),
+    запись через ON CONFLICT upsert + delete/insert items + guarded
+    history insert. Функции `get_orders_by_customer`, `get_order_by_id`,
+    `insert_order` сохранили сигнатуры.
+  - `src/modules/orders/repository/address_repository.py` — переписан на
+    SQLAlchemy Core: `create_address` / `get_address` через `addresses_table`.
+  - `src/shared/db/supabase_client.py` — удалён.
+  - `requirements-lambda.txt`, `requirements.txt` — удалена строка `supabase>=2.4`.
+  - `src/shared/config/env.py` — удалены `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`,
+    функция `_hydrate` и импорт `get_service_secret`.
+  - `tests/test_env.py` — переписан под оставшийся `get()` и константы.
+  - `tests/test_secrets.py` — ключи в фикстурах заменены на `DATABASE_URL`/`DB_HOST`.
+  - `docs/deployment.md` — `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` → `DATABASE_URL`.
+  - `.github/workflows/deploy-step-functions.yml` — убран "supabase" из описания слоя.
+- **Открыто:** —
+- **Дальше:** —
 
 ---
 
@@ -565,6 +593,7 @@ FDS-25 snapshot (2026-07-12):
 
 ## Лента
 
+- 2026-07-23 [DeepSeek/deepseek-v4-pro] FDS-33: order reads/writes now go through SQLAlchemy Core (DATABASE_URL); supabase-py library removed; supabase_client.py deleted (FDS-33)
 - FDS-31 — подняты read-эндпоинты через HTTP API Gateway: GET /api/v1/orders и GET /api/v1/orders/{orderId}.
 - 2026-07-22 [DeepSeek/deepseek-v4-pro] FDS-32: verify_payment now captures approved PayPal orders (APPROVED -> COMPLETED) before verifying; added paypal_client.capture_order (idempotent on ORDER_ALREADY_CAPTURED).
 - 2026-07-23 [DeepSeek/deepseek-v4-pro] FDS-31: deploy get_customer_orders & get_order_by_id lambdas; wire HTTP API Gateway (order-service-http-api) routes GET /api/v1/orders and GET /api/v1/orders/{orderId}; idempotent CLI step.

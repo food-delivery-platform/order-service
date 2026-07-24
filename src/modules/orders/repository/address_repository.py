@@ -1,18 +1,18 @@
-"""Read/write access to customer addresses stored in Supabase (FDS-25).
+"""Read/write access to customer addresses via SQLAlchemy Core (FDS-25, FDS-33).
 
-Addresses live in the local ``addresses`` table — same Supabase instance as
-orders, but a separate table (no JSONB embedding).
+Replaces the previous supabase-py implementation. Uses the shared engine
+(DATABASE_URL) — the same connection path as order_repository.
 """
 
 from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from src.modules.orders.model.customer_address import CustomerAddress
-from src.shared.db import supabase_client
-from src.shared.utils import ids
+from sqlalchemy import select
 
-_ADDRESSES_TABLE = "addresses"
+from src.modules.orders.model.customer_address import CustomerAddress
+from src.shared.db.engine import addresses_table, get_engine
+from src.shared.utils import ids
 
 
 def create_address(
@@ -26,8 +26,7 @@ def create_address(
     notes: str | None = None,
 ) -> CustomerAddress:
     """Insert a new address row, return the created model."""
-    client = supabase_client.get_client()
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(timezone.utc)
     address_id = ids.new_address_id()
 
     row = {
@@ -41,31 +40,43 @@ def create_address(
         "notes": notes,
         "created_at": now,
     }
-    client.table(_ADDRESSES_TABLE).insert(row).execute()
-    return CustomerAddress(**row)
+
+    with get_engine().begin() as conn:
+        conn.execute(addresses_table.insert().values(**row))
+
+    return CustomerAddress(
+        address_id=address_id,
+        customer_id=customer_id,
+        street=street,
+        city=city,
+        postal_code=postal_code,
+        latitude=latitude,
+        longitude=longitude,
+        notes=notes,
+        created_at=now.isoformat(),
+    )
 
 
 def get_address(address_id: str) -> CustomerAddress | None:
     """Look up an address by id, or None if not found."""
-    client = supabase_client.get_client()
-    resp = (
-        client.table(_ADDRESSES_TABLE)
-        .select("*")
-        .eq("address_id", address_id)
-        .limit(1)
-        .execute()
-    )
-    rows = resp.data or []
-    if not rows:
+    with get_engine().connect() as conn:
+        row = conn.execute(
+            select(addresses_table)
+            .where(addresses_table.c.address_id == address_id)
+            .limit(1)
+        ).first()
+
+    if row is None:
         return None
+
     return CustomerAddress(
-        address_id=rows[0]["address_id"],
-        customer_id=rows[0]["customer_id"],
-        street=rows[0]["street"],
-        city=rows[0]["city"],
-        postal_code=rows[0]["postal_code"],
-        latitude=rows[0].get("latitude"),
-        longitude=rows[0].get("longitude"),
-        notes=rows[0].get("notes"),
-        created_at=rows[0].get("created_at"),
+        address_id=row.address_id,
+        customer_id=row.customer_id,
+        street=row.street,
+        city=row.city,
+        postal_code=row.postal_code,
+        latitude=row.latitude,
+        longitude=row.longitude,
+        notes=row.notes,
+        created_at=row.created_at.isoformat() if row.created_at else None,
     )
