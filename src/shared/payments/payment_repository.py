@@ -67,7 +67,6 @@ def create_payment(
             # Rollback the failed insert, then fetch the existing row.
             # get_engine().begin() auto-rolls back on exception.
             # We must fetch *after* the connection is released.
-            pass
         else:
             return PaymentSession(
                 order_id=order_id,

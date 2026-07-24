@@ -19,7 +19,8 @@ from pydantic import ValidationError
 
 from src.lambdas.paypal_webhook.schema import WebhookBody
 from src.shared.errors.app_error import AppError
-from src.shared.http.api_response import error as api_error, from_app_error, ok
+from src.shared.http.api_response import error as api_error
+from src.shared.http.api_response import from_app_error, ok
 from src.shared.payments.paypal_client import verify_webhook_signature
 
 logger = logging.getLogger(__name__)
