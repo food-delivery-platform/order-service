@@ -591,9 +591,20 @@ FDS-25 snapshot (2026-07-12):
 
 ---
 
+## 2026-07-24 — DeepSeek (deepseek-v4-pro) — FDS-33 lint hotfix
+
+- **Цель:** исправить ruff-ошибки на main после мёрджа FDS-33 (python-ci red).
+- **Изменено:**
+  - `src/shared/payments/payment_repository.py` — убран ненужный `pass` (PIE790).
+  - `src/shared/config/secrets.py` — `except Exception:` → `except Exception as exc:`, `raise ... from exc` (B904).
+- **Открыто:** —
+- **Дальше:** —
+
+---
+
 ## Лента
 
-- 2026-07-23 [DeepSeek/deepseek-v4-pro] FDS-33: order reads/writes now go through SQLAlchemy Core (DATABASE_URL); supabase-py library removed; supabase_client.py deleted (FDS-33)
+- 2026-07-24 [DeepSeek/deepseek-v4-pro] lint hotfix, main green (FDS-33-hotfix-lint)
 - FDS-31 — подняты read-эндпоинты через HTTP API Gateway: GET /api/v1/orders и GET /api/v1/orders/{orderId}.
 - 2026-07-22 [DeepSeek/deepseek-v4-pro] FDS-32: verify_payment now captures approved PayPal orders (APPROVED -> COMPLETED) before verifying; added paypal_client.capture_order (idempotent on ORDER_ALREADY_CAPTURED).
 - 2026-07-23 [DeepSeek/deepseek-v4-pro] FDS-31: deploy get_customer_orders & get_order_by_id lambdas; wire HTTP API Gateway (order-service-http-api) routes GET /api/v1/orders and GET /api/v1/orders/{orderId}; idempotent CLI step.

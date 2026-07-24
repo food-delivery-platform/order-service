@@ -45,6 +45,6 @@ def get_service_secret() -> dict:
         _secret_cache = json.loads(secret_string)
         logger.info("Service secret loaded successfully")
         return _secret_cache
-    except Exception:
+    except Exception as exc:
         logger.error("Failed to load service secret")
-        raise RuntimeError("Failed to load service secret")
+        raise RuntimeError("Failed to load service secret") from exc
