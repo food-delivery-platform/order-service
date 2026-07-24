@@ -19,8 +19,7 @@ from decimal import Decimal
 
 from src.lambdas.verify_payment.schema import VerifyPaymentInput
 from src.shared.errors.app_error import AppError
-from src.shared.payments import paypal_client
-from src.shared.payments import payment_repository
+from src.shared.payments import payment_repository, paypal_client
 from src.shared.validation import validated_input
 
 logger = logging.getLogger(__name__)

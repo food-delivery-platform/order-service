@@ -614,8 +614,21 @@ FDS-25 snapshot (2026-07-12):
 
 ---
 
+## 2026-07-24 — DeepSeek (deepseek-v4-pro) — FDS-33 lint hotfix v3
+
+- **Цель:** исправить CI ruff I001 (unsorted imports) в 3 payment handler-ах.
+- **Изменено:**
+  - `ruff check src scripts --fix` — 3 I001 errors auto-fixed (sorted imports).
+  - `ruff format src scripts` — 105 files already formatted.
+  - `AGENTS.md` — запись в журнал + лента.
+- **Открыто:** —
+- **Дальше:** —
+
+---
+
 ## Лента
 
+- 2026-07-24 [DeepSeek/deepseek-v4-pro] lint hotfix v3: ran ruff check --fix (sorted imports, I001) in 3 payment handlers; ruff check + ruff format --diff both clean locally before push (FDS-33-hotfix-lint-v3)
 - 2026-07-24 [DeepSeek/deepseek-v4-pro] lint hotfix v2: ran ruff --fix + ruff format, both green locally (FDS-33-hotfix-lint-v2)
 - 2026-07-24 [DeepSeek/deepseek-v4-pro] lint hotfix, main green (FDS-33-hotfix-lint)
 - FDS-31 — подняты read-эндпоинты через HTTP API Gateway: GET /api/v1/orders и GET /api/v1/orders/{orderId}.

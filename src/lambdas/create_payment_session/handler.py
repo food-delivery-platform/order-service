@@ -21,8 +21,7 @@ import logging
 
 from src.lambdas.create_payment_session.schema import CreatePaymentSessionInput
 from src.shared.errors.app_error import AppError
-from src.shared.payments import paypal_client
-from src.shared.payments import payment_repository
+from src.shared.payments import payment_repository, paypal_client
 from src.shared.payments.models import PaymentStatus
 from src.shared.validation import validated_input
 
