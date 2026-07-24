@@ -602,8 +602,21 @@ FDS-25 snapshot (2026-07-12):
 
 ---
 
+## 2026-07-24 — DeepSeek (deepseek-v4-pro) — FDS-33 lint hotfix v2
+
+- **Цель:** пройти ruff check --fix + ruff format на всём проекте, убедиться что оба зелёные локально, чтобы CI на PR #19 прошёл.
+- **Изменено:**
+  - `ruff check src scripts --fix` — All checks passed!
+  - `ruff format src scripts` — 105 files already formatted
+  - `AGENTS.md` — запись в журнал + лента
+- **Открыто:** —
+- **Дальше:** —
+
+---
+
 ## Лента
 
+- 2026-07-24 [DeepSeek/deepseek-v4-pro] lint hotfix v2: ran ruff --fix + ruff format, both green locally (FDS-33-hotfix-lint-v2)
 - 2026-07-24 [DeepSeek/deepseek-v4-pro] lint hotfix, main green (FDS-33-hotfix-lint)
 - FDS-31 — подняты read-эндпоинты через HTTP API Gateway: GET /api/v1/orders и GET /api/v1/orders/{orderId}.
 - 2026-07-22 [DeepSeek/deepseek-v4-pro] FDS-32: verify_payment now captures approved PayPal orders (APPROVED -> COMPLETED) before verifying; added paypal_client.capture_order (idempotent on ORDER_ALREADY_CAPTURED).
