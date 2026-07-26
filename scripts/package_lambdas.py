@@ -45,6 +45,7 @@ DEPLOYABLE = [
     "publish_order_event",
     "get_customer_orders",
     "get_order_by_id",
+    "create_order",
 ]
 
 EXCLUDED_SUFFIXES = {".pyc", ".pyo", ".pyd"}
