@@ -118,7 +118,7 @@ def handler(event, context=None):
         return ok(
             {
                 "status": "accepted",
-                "paypal_order_id": normalised["paypal_order_id"],
+                "paypalOrderId": normalised["paypal_order_id"],
             }
         )
 
