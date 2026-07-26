@@ -626,8 +626,39 @@ FDS-25 snapshot (2026-07-12):
 
 ---
 
+## 2026-07-26 — Claude (sonnet-5) — CORS fix for POST /orders (branch fix-cors-2)
+
+- **Цель:** починить блокер из `todo_26_jul.md` — `OPTIONS /api/v1/orders` (preflight для `POST`)
+  отвечал 204 без единого `access-control-*` заголовка, из-за чего браузер резал запрос на
+  создание заказа ещё до отправки тела (`TypeError: Failed to fetch`).
+- **Находка:** CORS в этом репо нигде не задан как код (ни в лямбдах, ни в IaC — его тут просто
+  нет) и настраивался раньше вручную поверх живого HTTP API Gateway (`order-service-http-api`),
+  судя по всему только с `AllowMethods=GET,OPTIONS` — отсюда рабочий CORS на `GET` и пустые
+  заголовки на `POST`-preflight. Маршрут `POST /api/v1/orders` в `.github/workflows/deploy-step-functions.yml`
+  также не был вообще прописан (лямбда `create_order` — стаб FDS-15, не входила в `DEPLOYABLE` и
+  не была wired), поэтому без токена и получали `404 Not Found` от самого API Gateway.
+- **Изменено (`.github/workflows/deploy-step-functions.yml`):**
+  - `create_order` добавлен в `DEPLOYABLE` — деплоится наравне с остальными (пока отвечает
+    `501 NOT_IMPLEMENTED`, это отдельная задача FDS-15).
+  - Добавлен идемпотентный шаг `aws apigatewayv2 update-api --cors-configuration` — CORS теперь
+    задаётся на уровне всего HTTP API (а не по каждому route/OPTIONS отдельно, HTTP API v2 сам
+    обслуживает preflight), явно включает `GET,POST,PATCH,DELETE,OPTIONS` и
+    `authorization,content-type`. Origin(ы) берутся из секрета `CORS_ALLOWED_ORIGINS`
+    (запятая-разделённый список), фолбэк — `http://localhost:3000`. Запускается на каждом деплое,
+    так что забытый метод в `AllowMethods` больше не тихий регресс.
+  - `wire_route POST "/api/v1/orders" create_order` — маршрут наконец подключён к API Gateway.
+- **Открыто:** `POST /orders` после этого фикса может упереться в ту же проблему авторизатора
+  (503, см. `todo_24_jul.md`) — раньше не проверялось, preflight резал запрос до неё. Плюс
+  `create_order` всё ещё стаб (FDS-15) — реальная бизнес-логика не входит в этот фикс.
+- **Дальше:** после деплоя повторно прогнать сценарий из `todo_26_jul.md` («Как проверить») из
+  браузера; если авторизатор всплывёт с 503 — разбирать отдельно (Cognito vs raw Google id_token,
+  см. `todo_24_jul.md`); затем реализовать FDS-15 (реальный `create_order`).
+
+---
+
 ## Лента
 
+- 2026-07-26 [Claude/sonnet-5] CORS fix: apigatewayv2 update-api --cors-configuration (API-level, idempotent, GET/POST/PATCH/DELETE/OPTIONS) + wire POST /api/v1/orders -> create_order + add create_order to DEPLOYABLE (fix-cors-2)
 - 2026-07-24 [DeepSeek/deepseek-v4-pro] lint hotfix v3: ran ruff check --fix (sorted imports, I001) in 3 payment handlers; ruff check + ruff format --diff both clean locally before push (FDS-33-hotfix-lint-v3)
 - 2026-07-24 [DeepSeek/deepseek-v4-pro] lint hotfix v2: ran ruff --fix + ruff format, both green locally (FDS-33-hotfix-lint-v2)
 - 2026-07-24 [DeepSeek/deepseek-v4-pro] lint hotfix, main green (FDS-33-hotfix-lint)

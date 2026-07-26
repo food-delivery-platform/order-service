@@ -57,7 +57,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          DEPLOYABLE=("validate_order" "resolve_delivery_address" "create_order_step" "create_payment_session" "paypal_webhook" "verify_payment" "mark_payment_result" "publish_order_event" "get_customer_orders" "get_order_by_id")
+          DEPLOYABLE=("validate_order" "resolve_delivery_address" "create_order_step" "create_payment_session" "paypal_webhook" "verify_payment" "mark_payment_result" "publish_order_event" "get_customer_orders" "get_order_by_id" "create_order")
           ROLE_ARN="${{ secrets.LAMBDA_EXECUTION_ROLE_ARN }}"
           LAYER_ARN="${{ steps.layer.outputs.layer_arn }}"
 
@@ -151,6 +151,21 @@ jobs:
             aws apigatewayv2 create-stage --api-id "$API_ID" --stage-name '$default' --auto-deploy --no-cli-pager
           fi
 
+          # CORS is set on the API itself (HTTP API handles preflight OPTIONS
+          # automatically for every route once this is applied), not per-route.
+          # Re-applied on every deploy so new methods (POST/PATCH/...) are
+          # never missing from AllowMethods again.
+          ALLOWED_ORIGINS="${{ secrets.CORS_ALLOWED_ORIGINS }}"
+          if [ -z "$ALLOWED_ORIGINS" ]; then
+            ALLOWED_ORIGINS="http://localhost:3000,http://localhost:3002"
+          fi
+          ORIGINS_JSON=$(python3 -c "import json,sys; print(json.dumps(sys.argv[1].split(',')))" "$ALLOWED_ORIGINS")
+          CORS_JSON=$(jq -n --argjson origins "$ORIGINS_JSON" \
+            '{AllowOrigins: $origins, AllowMethods: ["GET","POST","PATCH","DELETE","OPTIONS"], AllowHeaders: ["authorization","content-type"], MaxAge: 300}')
+          aws apigatewayv2 update-api --api-id "$API_ID" \
+            --cors-configuration "$CORS_JSON" \
+            --no-cli-pager
+
           wire_route() {
             local METHOD="$1" ROUTE_PATH="$2" FUNC="$3"
             local ROUTE_KEY="${METHOD} ${ROUTE_PATH}"
@@ -182,6 +197,7 @@ jobs:
 
           wire_route GET "/api/v1/orders" get_customer_orders
           wire_route GET "/api/v1/orders/{orderId}" get_order_by_id
+          wire_route POST "/api/v1/orders" create_order
 
           API_URL="https://${API_ID}.execute-api.${REGION}.amazonaws.com"
           echo "api_url=${API_URL}" >> "${GITHUB_OUTPUT}"
@@ -189,6 +205,7 @@ jobs:
           echo "Base URL: ${API_URL}" >> "${GITHUB_STEP_SUMMARY}"
           echo "- GET ${API_URL}/api/v1/orders?customerId=..." >> "${GITHUB_STEP_SUMMARY}"
           echo "- GET ${API_URL}/api/v1/orders/{orderId}" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- POST ${API_URL}/api/v1/orders" >> "${GITHUB_STEP_SUMMARY}"
 
       - name: Render ASL and deploy State Machine
         id: deploy-sm
