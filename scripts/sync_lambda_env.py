@@ -144,10 +144,13 @@ def sync_one(
         logger.info("%s: updating %s", function_name, changed)
 
     if dry_run:
+        change_count = len(added_names) + len(
+            [k for k in required if k in existing and existing[k] != required[k]]
+        )
         logger.info(
             "%s: (dry-run) would update %d env var(s)",
             function_name,
-            len(required),
+            change_count,
         )
         return False
 

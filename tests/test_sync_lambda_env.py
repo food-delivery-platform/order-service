@@ -5,6 +5,7 @@ All boto3 calls are stubbed — no real AWS requests.
 
 from __future__ import annotations
 
+import io
 import os
 import sys
 from pathlib import Path
@@ -20,8 +21,7 @@ _SCRIPTS_DIR = str(Path(__file__).resolve().parent.parent / "scripts")
 sys.path.insert(0, _SCRIPTS_DIR)
 import sync_lambda_env  # noqa: E402
 
-# Restore sys.path to avoid accidental side-effects in other tests.
-sys.path.pop(0)
+sys.path.remove(_SCRIPTS_DIR)
 
 
 # ---------------------------------------------------------------------------
@@ -121,10 +121,17 @@ def test_missing_env_var_exit_code_1_others_processed():
             "sync_lambda_env.boto3.client", return_value=mock_client
         ):
             with patch.object(sys, "argv", ["sync_lambda_env.py"]):
-                with pytest.raises(SystemExit) as exc_info:
-                    sync_lambda_env.main()
+                with patch("sys.stdout", new_callable=io.StringIO) as mock_stdout:
+                    with pytest.raises(SystemExit) as exc_info:
+                        sync_lambda_env.main()
 
     assert exc_info.value.code == 1
+
+    # Verify missing var names are reported in the final summary.
+    stdout_text = mock_stdout.getvalue()
+    assert "PAYPAL_CLIENT_ID" in stdout_text
+    assert "PAYPAL_CLIENT_SECRET" in stdout_text
+    assert "PAYPAL_WEBHOOK_ID" in stdout_text
 
     # All 10 functions were still processed.
     assert mock_client.get_function_configuration.call_count == len(
