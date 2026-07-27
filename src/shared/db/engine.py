@@ -191,13 +191,26 @@ def _dsn() -> str:
          ``DB_NAME`` / ``DB_PORT`` (secret first, plain env second).
 
     Raises:
-        RuntimeError: when no usable configuration is found.
+        RuntimeError: when no usable configuration is found, or when the
+            database user assembled from parts does not contain a ``.``
+            (required by the Supabase pooler).
     """
     secret = get_service_secret()
 
-    dsn = secret.get("database_url") or os.environ.get("DATABASE_URL")
+    # 1. secret.database_url (highest precedence)
+    dsn = secret.get("database_url")
     if dsn:
+        logger.info("dsn source: secret.database_url")
         return dsn
+
+    # 2. env.DATABASE_URL
+    dsn = os.environ.get("DATABASE_URL")
+    if dsn:
+        logger.info("dsn source: env.DATABASE_URL")
+        return dsn
+
+    # 3. Assemble from individual parts
+    logger.info("dsn source: assembled from parts")
 
     def _cfg(key: str) -> str | None:
         value = secret.get(key)
@@ -212,6 +225,11 @@ def _dsn() -> str:
     port = _cfg("DB_PORT") or "5432"
 
     if host and user and password and name:
+        if "." not in user:
+            raise RuntimeError(
+                "database user must be in the form postgres.<project-ref> "
+                "when connecting through the Supabase pooler"
+            )
         return (
             f"postgresql+psycopg://{quote_plus(user)}:{quote_plus(password)}"
             f"@{host}:{port}/{name}"
