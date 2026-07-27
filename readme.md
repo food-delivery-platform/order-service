@@ -27,6 +27,7 @@ python scripts/invoke_local.py create_order events/create-order.json
 ## API Endpoints
 
 Machine-readable OpenAPI spec: [`docs/openapi.yaml`](docs/openapi.yaml)
+Payment end-to-end runbook: [`docs/payment-e2e-runbook.md`](docs/payment-e2e-runbook.md)
 
 | Method | Path | Description |
 |---|---|---|

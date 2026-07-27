@@ -658,6 +658,7 @@ FDS-25 snapshot (2026-07-12):
 
 ## Лента
 
+- 2026-07-27 [DeepSeek/deepseek-v4-pro] FDS-40-payment-e2e-runbook: first end-to-end sandbox payment completed on 26 July 2026; four failure modes documented in docs/payment-e2e-runbook.md
 - 2026-07-26 [Claude/sonnet-5] CORS fix: apigatewayv2 update-api --cors-configuration (API-level, idempotent, GET/POST/PATCH/DELETE/OPTIONS) + wire POST /api/v1/orders -> create_order + add create_order to DEPLOYABLE (fix-cors-2)
 - 2026-07-24 [DeepSeek/deepseek-v4-pro] lint hotfix v3: ran ruff check --fix (sorted imports, I001) in 3 payment handlers; ruff check + ruff format --diff both clean locally before push (FDS-33-hotfix-lint-v3)
 - 2026-07-24 [DeepSeek/deepseek-v4-pro] lint hotfix v2: ran ruff --fix + ruff format, both green locally (FDS-33-hotfix-lint-v2)
