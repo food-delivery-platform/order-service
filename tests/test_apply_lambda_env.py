@@ -1,4 +1,4 @@
-"""Hermetic unit tests for scripts/sync_lambda_env.py (FDS-39).
+"""Hermetic unit tests for scripts/apply_lambda_env.py (FDS-39).
 
 All boto3 calls are stubbed — no real AWS requests.
 """
@@ -19,7 +19,7 @@ import pytest
 
 _SCRIPTS_DIR = str(Path(__file__).resolve().parent.parent / "scripts")
 sys.path.insert(0, _SCRIPTS_DIR)
-import sync_lambda_env  # noqa: E402
+import apply_lambda_env  # noqa: E402
 
 sys.path.remove(_SCRIPTS_DIR)
 
@@ -53,7 +53,7 @@ def test_adds_missing_database_url_preserves_existing():
     }
 
     required = {"DATABASE_URL": "postgres://test-db:5432/orders"}
-    result = sync_lambda_env.sync_one(
+    result = apply_lambda_env.apply_one(
         client, "validate_order", required, dry_run=False
     )
 
@@ -91,7 +91,7 @@ def test_already_up_to_date_no_update_call():
         "DATABASE_URL": "postgres://test-db:5432/orders",
         "SERVICE_SECRET_ARN": "arn:aws:secretsmanager:us-east-1:123:secret:x",
     }
-    result = sync_lambda_env.sync_one(
+    result = apply_lambda_env.apply_one(
         client, "validate_order", required, dry_run=False
     )
 
@@ -118,12 +118,12 @@ def test_missing_env_var_exit_code_1_others_processed():
 
     with patch.dict(os.environ, test_env, clear=True):
         with patch(
-            "sync_lambda_env.boto3.client", return_value=mock_client
+            "apply_lambda_env.boto3.client", return_value=mock_client
         ):
-            with patch.object(sys, "argv", ["sync_lambda_env.py"]):
+            with patch.object(sys, "argv", ["apply_lambda_env.py"]):
                 with patch("sys.stdout", new_callable=io.StringIO) as mock_stdout:
                     with pytest.raises(SystemExit) as exc_info:
-                        sync_lambda_env.main()
+                        apply_lambda_env.main()
 
     assert exc_info.value.code == 1
 
@@ -135,7 +135,7 @@ def test_missing_env_var_exit_code_1_others_processed():
 
     # All 10 functions were still processed.
     assert mock_client.get_function_configuration.call_count == len(
-        sync_lambda_env.FUNCTIONS
+        apply_lambda_env.FUNCTIONS
     )
     # At least one update happened (DATABASE_URL / SERVICE_SECRET_ARN).
     assert mock_client.update_function_configuration.call_count > 0
@@ -158,7 +158,7 @@ def test_dry_run_no_update_call():
     }
 
     required = {"DATABASE_URL": "postgres://test-db:5432/orders"}
-    result = sync_lambda_env.sync_one(
+    result = apply_lambda_env.apply_one(
         client, "validate_order", required, dry_run=True
     )
 

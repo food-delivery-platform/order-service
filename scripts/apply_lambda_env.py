@@ -1,12 +1,12 @@
-"""Sync Lambda environment variables for order-service from one place.
+"""Apply required Lambda environment variables for order-service from one place.
 
 Makes sure every order-service lambda has the environment variables it needs
 without wiping the variables it already has. This replaces manual AWS-console
 edits that were lost on every deploy.
 
 Usage:
-    python scripts/sync_lambda_env.py              # sync all functions
-    python scripts/sync_lambda_env.py --dry-run    # print what would change
+    python scripts/apply_lambda_env.py              # apply to all functions
+    python scripts/apply_lambda_env.py --dry-run    # print what would change
 """
 
 from __future__ import annotations
@@ -103,18 +103,18 @@ def _make_client(region: str) -> boto3.client:
 
 
 # ---------------------------------------------------------------------------
-# Core sync logic
+# Core apply logic
 # ---------------------------------------------------------------------------
 
 
-def sync_one(
+def apply_one(
     client: boto3.client,
     function_name: str,
     required: dict[str, str],
     *,
     dry_run: bool,
 ) -> bool:
-    """Sync one Lambda function's environment variables.
+    """Apply required environment variables to one Lambda function.
 
     Returns ``True`` if the function's config was already up to date.
     """
@@ -162,19 +162,19 @@ def sync_one(
     return False
 
 
-def sync_all(
+def apply_all(
     client: boto3.client,
     resolved: dict[str, str],
     *,
     dry_run: bool,
 ) -> tuple[int, int]:
-    """Sync all functions. Returns ``(updated_count, already_correct_count)``."""
+    """Apply required env vars to all functions. Returns ``(updated_count, already_correct_count)``."""
     updated = 0
     correct = 0
 
     for function_name in FUNCTIONS:
         required = _build_required_env(function_name, resolved)
-        if sync_one(client, function_name, required, dry_run=dry_run):
+        if apply_one(client, function_name, required, dry_run=dry_run):
             correct += 1
         else:
             updated += 1
@@ -189,7 +189,7 @@ def sync_all(
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Sync Lambda environment variables for order-service.",
+        description="Apply Lambda environment variables for order-service.",
     )
     parser.add_argument(
         "--dry-run",
@@ -208,7 +208,7 @@ def main() -> None:
     region = os.environ.get("AWS_REGION", "us-east-1")
     client = _make_client(region)
 
-    updated, correct = sync_all(client, resolved, dry_run=args.dry_run)
+    updated, correct = apply_all(client, resolved, dry_run=args.dry_run)
 
     # Final summary goes to stdout (print, not logging).
     print(f"\nSummary: {updated} updated, {correct} already correct")
