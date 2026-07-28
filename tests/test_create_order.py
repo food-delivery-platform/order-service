@@ -58,10 +58,6 @@ def _assert_response(response: dict, expected_status: int) -> dict:
     return json.loads(response["body"])
 
 
-def _make_mock_sfn() -> MagicMock:
-    return MagicMock()
-
-
 # ---------------------------------------------------------------------------
 # Test: successful invocation → 202 Accepted
 # ---------------------------------------------------------------------------
