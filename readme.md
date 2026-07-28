@@ -52,6 +52,43 @@ as HTTP endpoints.
 | **order-creation** | `validate_order` → `resolve_delivery_address` → `create_order_step` → `create_payment_session` |
 | **payment-confirmation** | `verify_payment` → `mark_payment_result` → `publish_order_event` |
 
+## POST /api/v1/orders — Asynchronous order creation
+
+The `POST /api/v1/orders` endpoint is **asynchronous**: it validates the request
+envelope, starts the order-creation Step Functions state machine, and immediately
+returns `202 Accepted` with an execution identifier. The actual order is created
+inside the state machine (cart validation, address resolution, persistence,
+payment session).
+
+### Request
+
+```json
+{
+  "customer_id": "<uuid>",
+  "restaurant_id": "<uuid>",
+  "items": [{"menu_item_id": "<uuid>", "quantity": 2}],
+  "delivery_address": {"street": "...", "city": "...", "postal_code": "..."}
+}
+```
+
+### Response (202 Accepted)
+
+```json
+{
+  "executionId": "create-order-<uuid>",
+  "status": "accepted"
+}
+```
+
+### Notes
+
+- The client should poll `GET /api/v1/orders` to discover the order once the
+  state machine completes.
+- The `executionId` in the response is the Step Functions execution name, not
+  the final order ID.
+- The route **currently has no authorizer** — any caller can trigger order
+  creation. FDS-34 will attach a JWT authorizer.
+
 ## Notes
 - Restaurant `preparing` / `ready` stages are handled on the restaurant frontend (per team decision), not in this service.
 - No shared `PATCH /orders/{orderId}/status` endpoint.

@@ -271,6 +271,38 @@ jobs:
 
           echo "sm_action=${SM_ACTION}" >> "${GITHUB_OUTPUT}"
 
+      - name: Pass ORDER_CREATION_SM_ARN to create_order
+        id: set-create-order-sm-arn
+        run: |
+          set -euo pipefail
+
+          SM_NAME="${{ secrets.AWS_STEP_FUNCTIONS_STATE_MACHINE_NAME }}"
+          SM_ARN=$(aws stepfunctions list-state-machines \
+            --query "stateMachines[?name=='${SM_NAME}'].stateMachineArn" \
+            --output text --no-cli-pager)
+
+          if [ -z "${SM_ARN}" ] || [ "${SM_ARN}" = "None" ]; then
+            echo "::warning::State machine ${SM_NAME} not found; skipping env update on create_order"
+            exit 0
+          fi
+
+          echo "Setting ORDER_CREATION_SM_ARN=${SM_ARN} on create_order"
+
+          EXISTING_VARS=$(aws lambda get-function-configuration \
+            --function-name create_order \
+            --query 'Environment.Variables' \
+            --output json \
+            --no-cli-pager 2>/dev/null || echo "{}")
+
+          MERGED_VARS=$(echo "${EXISTING_VARS}" | jq -c \
+            --arg sm_arn "${SM_ARN}" \
+            '(. // {}) + {ORDER_CREATION_SM_ARN: $sm_arn}')
+
+          aws lambda update-function-configuration \
+            --function-name create_order \
+            --environment "{\"Variables\": ${MERGED_VARS}}" \
+            --no-cli-pager
+
       - name: Render + deploy Payment Confirmation SM
         id: deploy-payment-sm
         run: |
