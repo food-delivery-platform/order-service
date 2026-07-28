@@ -112,6 +112,23 @@ def test_missing_sm_arn_returns_500(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 # ---------------------------------------------------------------------------
+# 2a. whitespace-only ORDER_CREATION_SM_ARN → 500 CONFIGURATION_ERROR
+# ---------------------------------------------------------------------------
+
+
+def test_whitespace_sm_arn_returns_500(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv(STATE_MACHINE_ARN_ENV, "   ")
+    _mock_sfn_client.reset_mock()
+
+    response = handler(_VALID_EVENT, None)
+
+    body = _assert_response(response, 500)
+    assert body["error"] == "CONFIGURATION_ERROR"
+
+    _mock_sfn_client.start_execution.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
 # 3. missing body → 400 INVALID_BODY
 # ---------------------------------------------------------------------------
 
