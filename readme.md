@@ -62,12 +62,25 @@ payment session).
 
 ### Request
 
+All fields below are validated with a Pydantic schema
+(`src/lambdas/create_order/schema.py`). Unknown / extra fields are rejected
+with a `400 INVALID_INPUT`.
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `customer_id` | string | ✅ | |
+| `restaurant_id` | string | ✅ | |
+| `items` | array of objects | ✅ | At least one item; each has `menu_item_id` (string) and `quantity` (integer > 0) |
+| `delivery_address` | object | ❌ | `{street, city, postal_code}` — all non-empty strings |
+| `delivery_address_id` | string | ❌ | Pre-existing address identifier |
+
 ```json
 {
   "customer_id": "<uuid>",
   "restaurant_id": "<uuid>",
   "items": [{"menu_item_id": "<uuid>", "quantity": 2}],
-  "delivery_address": {"street": "...", "city": "...", "postal_code": "..."}
+  "delivery_address": {"street": "...", "city": "...", "postal_code": "..."},
+  "delivery_address_id": "<uuid>"
 }
 ```
 
@@ -76,7 +89,8 @@ payment session).
 ```json
 {
   "executionId": "create-order-<uuid>",
-  "status": "accepted"
+  "executionArn": "arn:aws:states:...:execution:order-creation:create-order-<uuid>",
+  "status": "PENDING"
 }
 ```
 
