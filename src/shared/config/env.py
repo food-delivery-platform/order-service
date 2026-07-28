@@ -1,15 +1,7 @@
-"""Access to non-secret, per-environment Lambda configuration (FDS-42).
+"""Centralized access to environment variables (12-factor config).
 
-Two storages, two purposes:
-
-* Secrets Manager (``SERVICE_SECRET_ARN`` -> ``order-service/db``) holds
-  credentials only — database user and password, PayPal client id and secret,
-  webhook id. Those must never be visible in the Lambda configuration.
-* Environment variables hold non-secret configuration that the deploy workflow
-  wires up — event bus names and state machine ARNs. These are resource names,
-  not credentials; access to them is controlled by IAM.
-
-Read credentials with ``src.shared.config.secrets``. Read everything else here.
+This module holds non-secret, per-environment configuration.  Credentials
+live in ``src/shared/config/secrets.py`` — never in environment variables.
 """
 
 import os
@@ -17,8 +9,21 @@ import os
 from src.shared.errors.app_error import AppError
 
 
+def get(name: str, default: str | None = None, required: bool = False) -> str | None:
+    value = os.environ.get(name, default)
+    if required and not value:
+        raise RuntimeError(f"Missing required environment variable: {name}")
+    return value
+
+
 def get_required_env(name: str) -> str:
-    """Return *name* from the environment, or raise AppError(500) if missing/empty."""
+    """Return a non-empty environment variable or fail with a 500 AppError.
+
+    ``get(name, required=True)`` raises ``RuntimeError``, which surfaces as an
+    unhandled 500 with no error code. Handlers need a typed failure they can
+    turn into a proper API response, so configuration defects use AppError with
+    code ``CONFIGURATION_ERROR``. The message names the variable, never a value.
+    """
     value = os.environ.get(name, "").strip()
     if not value:
         raise AppError(
@@ -26,13 +31,6 @@ def get_required_env(name: str) -> str:
             "CONFIGURATION_ERROR",
             f"Environment variable {name} is not set",
         )
-    return value
-
-
-def get(name: str, default: str | None = None, required: bool = False) -> str | None:
-    value = os.environ.get(name, default)
-    if required and not value:
-        raise RuntimeError(f"Missing required environment variable: {name}")
     return value
 
 

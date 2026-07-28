@@ -1,4 +1,4 @@
-"""Unit tests for src.shared.config (FDS-42)."""
+"""Unit tests for src.shared.config.env.get_required_env (FDS-42)."""
 
 from __future__ import annotations
 

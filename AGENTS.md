@@ -94,7 +94,8 @@ storages with a single, shared read path for each:
   only: database user and password, PayPal client id and secret, webhook id.
   Secret values must never appear in Lambda environment variables, logs, CI
   output, or committed files.
-* **Environment variables** — wired by
+* **Environment variables** — read through `src/shared/config/env.py`
+  (`get_required_env`), wired by
   `.github/workflows/deploy-step-functions.yml` on a per-Lambda basis.  Hold
   non-secret, per-environment resource names: event bus names and state
   machine ARNs.  Access to these resources is controlled by IAM, not by
