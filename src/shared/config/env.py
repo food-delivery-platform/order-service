@@ -1,6 +1,32 @@
-"""Centralized access to environment variables (12-factor config)."""
+"""Access to non-secret, per-environment Lambda configuration (FDS-42).
+
+Two storages, two purposes:
+
+* Secrets Manager (``SERVICE_SECRET_ARN`` -> ``order-service/db``) holds
+  credentials only — database user and password, PayPal client id and secret,
+  webhook id. Those must never be visible in the Lambda configuration.
+* Environment variables hold non-secret configuration that the deploy workflow
+  wires up — event bus names and state machine ARNs. These are resource names,
+  not credentials; access to them is controlled by IAM.
+
+Read credentials with ``src.shared.config.secrets``. Read everything else here.
+"""
 
 import os
+
+from src.shared.errors.app_error import AppError
+
+
+def get_required_env(name: str) -> str:
+    """Return *name* from the environment, or raise AppError(500) if missing/empty."""
+    value = os.environ.get(name, "").strip()
+    if not value:
+        raise AppError(
+            500,
+            "CONFIGURATION_ERROR",
+            f"Environment variable {name} is not set",
+        )
+    return value
 
 
 def get(name: str, default: str | None = None, required: bool = False) -> str | None:

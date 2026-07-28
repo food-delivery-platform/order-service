@@ -10,7 +10,6 @@ import base64
 import binascii
 import json
 import logging
-import os
 import uuid
 
 import boto3
@@ -18,7 +17,10 @@ from botocore.exceptions import BotoCoreError, ClientError
 from pydantic import ValidationError
 
 from src.lambdas.create_order.schema import CreateOrderRequest
+from src.shared.config.env import get_required_env
+from src.shared.errors.app_error import AppError
 from src.shared.http import api_response
+from src.shared.http.api_response import from_app_error
 
 logger = logging.getLogger(__name__)
 
@@ -61,63 +63,62 @@ def _format_validation_error(exc: ValidationError) -> str:
 
 
 def handler(event, context=None):
-    # ----------------------------------------------------------------
-    # 1. Decode request body
-    # ----------------------------------------------------------------
-    body = _decode_body(event)
-    if body is None:
-        return api_response.error(
-            400, "INVALID_BODY", "Request body is missing or not valid JSON"
-        )
-
-    # ----------------------------------------------------------------
-    # 2. Validate with pydantic
-    # ----------------------------------------------------------------
     try:
-        CreateOrderRequest.model_validate(body)
-    except ValidationError as exc:
-        return api_response.error(400, "INVALID_INPUT", _format_validation_error(exc))
+        # ----------------------------------------------------------------
+        # 1. Decode request body
+        # ----------------------------------------------------------------
+        body = _decode_body(event)
+        if body is None:
+            return api_response.error(
+                400, "INVALID_BODY", "Request body is missing or not valid JSON"
+            )
 
-    # ----------------------------------------------------------------
-    # 3. Read state machine ARN from env
-    # ----------------------------------------------------------------
-    sm_arn = os.environ.get(STATE_MACHINE_ARN_ENV, "").strip()
-    if not sm_arn:
-        return api_response.error(
-            500,
-            "CONFIGURATION_ERROR",
-            f"Environment variable {STATE_MACHINE_ARN_ENV} is not set",
+        # ----------------------------------------------------------------
+        # 2. Validate with pydantic
+        # ----------------------------------------------------------------
+        try:
+            CreateOrderRequest.model_validate(body)
+        except ValidationError as exc:
+            return api_response.error(
+                400, "INVALID_INPUT", _format_validation_error(exc)
+            )
+
+        # ----------------------------------------------------------------
+        # 3. Read state machine ARN from env
+        # ----------------------------------------------------------------
+        sm_arn = get_required_env(STATE_MACHINE_ARN_ENV)
+
+        # ----------------------------------------------------------------
+        # 4. Generate a unique execution name
+        # ----------------------------------------------------------------
+        execution_name = f"create-order-{uuid.uuid4()}"
+
+        # ----------------------------------------------------------------
+        # 5. Start the state machine
+        # ----------------------------------------------------------------
+        try:
+            _stepfunctions.start_execution(
+                stateMachineArn=sm_arn,
+                name=execution_name,
+                input=json.dumps(body),
+            )
+        except (BotoCoreError, ClientError) as exc:
+            return api_response.error(
+                502,
+                "ORCHESTRATION_UNAVAILABLE",
+                f"Failed to start state machine: {exc}",
+            )
+
+        # ----------------------------------------------------------------
+        # 6. Return 202 Accepted
+        # ----------------------------------------------------------------
+        return api_response.ok(
+            {
+                "executionId": execution_name,
+                "executionArn": f"{sm_arn}:execution/{execution_name}",
+                "status": "PENDING",
+            },
+            status_code=202,
         )
-
-    # ----------------------------------------------------------------
-    # 4. Generate a unique execution name
-    # ----------------------------------------------------------------
-    execution_name = f"create-order-{uuid.uuid4()}"
-
-    # ----------------------------------------------------------------
-    # 5. Start the state machine
-    # ----------------------------------------------------------------
-    try:
-        _stepfunctions.start_execution(
-            stateMachineArn=sm_arn,
-            name=execution_name,
-            input=json.dumps(body),
-        )
-    except (BotoCoreError, ClientError) as exc:
-        return api_response.error(
-            502,
-            "ORCHESTRATION_UNAVAILABLE",
-            f"Failed to start state machine: {exc}",
-        )
-
-    # ----------------------------------------------------------------
-    # 6. Return 202 Accepted
-    # ----------------------------------------------------------------
-    return api_response.ok(
-        {
-            "executionId": execution_name,
-            "executionArn": f"{sm_arn}:execution/{execution_name}",
-            "status": "PENDING",
-        },
-        status_code=202,
-    )
+    except AppError as err:
+        return from_app_error(err)
