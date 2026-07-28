@@ -714,3 +714,5 @@ FDS-25 snapshot (2026-07-12):
 - 2026-07-16 [DeepSeek/deepseek-v4-pro] FDS-27 R6: drop redundant amount before-validator (Pydantic v2 coerces Decimal natively)
 - 2026-07-18 [DeepSeek/deepseek-v4-pro] FDS-27 P2-C6: add paypal_webhook lambda with signature verification
 - 2026-07-21 [DeepSeek/deepseek-v4-pro] FDS-27: add OpenAPI 3.0 spec for Order Service endpoints (docs/openapi.yaml)
+
+- 2026-07-28 [DeepSeek/deepseek-v4-pro] FDS-41: adds scripts/check_secrets.py and wires it into the python-checks CI job, so hardcoded AWS access keys, database URLs containing a password, JSON Web Tokens and inline credential assignments now fail the build. Lines may opt out with a "secret-scan: allow" marker; placeholders such as os.environ lookups and <redacted> examples are ignored by design.
