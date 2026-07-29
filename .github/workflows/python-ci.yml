@@ -26,3 +26,6 @@ jobs:
 
       - name: Format diff
         run: ruff format --diff src scripts
+
+      - name: Secret scan
+        run: python scripts/check_secrets.py
