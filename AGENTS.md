@@ -685,6 +685,8 @@ FDS-25 snapshot (2026-07-12):
 
 ## Лента
 
+- 2026-07-27 [DeepSeek/deepseek-v4-pro] FDS-38-dsn-source-logging
+- 2026-07-27 [DeepSeek/deepseek-v4-pro] DSN source is now logged by label (secret.database_url / env.DATABASE_URL / assembled from parts); assembling DSN from parts fails fast with a clear RuntimeError when the database user is missing the project-ref suffix required by the Supabase pooler
 - 2026-07-27 [DeepSeek/deepseek-v4-pro] FDS-40-payment-e2e-runbook: first end-to-end sandbox payment completed on 26 July 2026; four failure modes documented in docs/payment-e2e-runbook.md
 - 2026-07-26 [Claude/sonnet-5] CORS fix: apigatewayv2 update-api --cors-configuration (API-level, idempotent, GET/POST/PATCH/DELETE/OPTIONS) + wire POST /api/v1/orders -> create_order + add create_order to DEPLOYABLE (fix-cors-2)
 - 2026-07-24 [DeepSeek/deepseek-v4-pro] lint hotfix v3: ran ruff check --fix (sorted imports, I001) in 3 payment handlers; ruff check + ruff format --diff both clean locally before push (FDS-33-hotfix-lint-v3)
@@ -745,3 +747,4 @@ FDS-25 snapshot (2026-07-12):
 - 2026-07-28 [DeepSeek/deepseek-v4-pro] FDS-42: replaced the create_order stub with a thin handler that validates the request envelope (customer_id, items), decodes the API Gateway body (plain or base64), starts the order-creation state machine with a unique execution name, and returns 202 Accepted with an executionId. The ORDER_CREATION_SM_ARN is set on deploy after the state machine exists. Tests cover 202, 400 (malformed body, missing fields), 500 (missing config), and 502 (orchestration failure).
 - 2026-07-28 [DeepSeek/deepseek-v4-pro] FDS-42: replaced manual "if not" checks with declarative pydantic validation via CreateOrderRequest schema; extra fields forbidden; updated readme with field table and response shape.
 - 2026-07-28 [DeepSeek/deepseek-v4-pro] FDS-42: extracted get_required_env into src/shared/config.py; documented configuration-vs-secrets rule (FDS-42-create-order-endpoint)
+- 2026-07-28 [DeepSeek/deepseek-v4-pro] FDS-41: adds scripts/check_secrets.py and wires it into the python-checks CI job, so hardcoded AWS access keys, database URLs containing a password, JSON Web Tokens and inline credential assignments now fail the build. Lines may opt out with a "secret-scan: allow" marker; placeholders such as os.environ lookups and <redacted> examples are ignored by design.

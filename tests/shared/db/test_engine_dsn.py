@@ -47,7 +47,7 @@ class TestDsnFromDbFields:
         "get_service_secret",
         return_value={
             "DB_HOST": "db.example.com",
-            "DB_USER": "u$er",
+            "DB_USER": "u$er.abc123",
             "DB_PASS": "p@ss:word",
             "DB_NAME": "orders",
             "DB_PORT": "5439",
@@ -59,8 +59,8 @@ class TestDsnFromDbFields:
         assert "db.example.com" in dsn
         assert "orders" in dsn
         assert "5439" in dsn
-        # quote_plus encodes special chars
-        assert "u%24er" in dsn
+        # quote_plus encodes special chars (dot stays literal)
+        assert "u%24er.abc123" in dsn
         assert "p%40ss%3Aword" in dsn
 
     @mock.patch.object(engine, "get_service_secret", return_value={})
@@ -68,7 +68,7 @@ class TestDsnFromDbFields:
         "os.environ",
         {
             "DB_HOST": "db.env.com",
-            "DB_USER": "envuser",
+            "DB_USER": "envuser.xyz789",
             "DB_PASS": "envpass",
             "DB_NAME": "envdb",
         },
@@ -77,7 +77,7 @@ class TestDsnFromDbFields:
     def test_all_fields_from_env(self, _mock_secret):
         dsn = engine._dsn()
         assert "db.env.com" in dsn
-        assert "envuser" in dsn
+        assert "envuser.xyz789" in dsn
         assert "envpass" in dsn
         assert "envdb" in dsn
         # default port
@@ -86,7 +86,7 @@ class TestDsnFromDbFields:
     @mock.patch.object(
         engine,
         "get_service_secret",
-        return_value={"DB_HOST": "secret.host", "DB_USER": "secuser"},
+        return_value={"DB_HOST": "secret.host", "DB_USER": "secuser.def456"},
     )
     @mock.patch.dict(
         "os.environ",
@@ -96,7 +96,7 @@ class TestDsnFromDbFields:
     def test_mixed_secret_and_env(self, _mock_secret):
         dsn = engine._dsn()
         assert "secret.host" in dsn
-        assert "secuser" in dsn
+        assert "secuser.def456" in dsn
         assert "envpass" in dsn
         assert "envdb" in dsn
         assert "5432" in dsn
@@ -135,3 +135,41 @@ class TestDsnMissing:
     def test_partial_db_fields_raises(self, _mock_secret):
         with pytest.raises(RuntimeError, match="DATABASE_URL not configured"):
             engine._dsn()
+
+
+class TestDsnPoolerUserValidation:
+    """When assembling from DB_* parts, the user must contain a dot (Supabase pooler)."""
+
+    @mock.patch.object(
+        engine,
+        "get_service_secret",
+        return_value={
+            "DB_HOST": "db.example.com",
+            "DB_USER": "postgres",
+            "DB_PASS": "secret",
+            "DB_NAME": "orders",
+        },
+    )
+    @mock.patch.dict("os.environ", {}, clear=True)
+    def test_user_without_dot_raises(self, _mock_secret):
+        with pytest.raises(
+            RuntimeError,
+            match="database user must be in the form postgres.<project-ref>",
+        ):
+            engine._dsn()
+
+    @mock.patch.object(
+        engine,
+        "get_service_secret",
+        return_value={
+            "DB_HOST": "db.example.com",
+            "DB_USER": "postgres.abcdefgh",
+            "DB_PASS": "secret",
+            "DB_NAME": "orders",
+        },
+    )
+    @mock.patch.dict("os.environ", {}, clear=True)
+    def test_user_with_dot_succeeds(self, _mock_secret):
+        dsn = engine._dsn()
+        assert "postgres.abcdefgh" in dsn
+        assert "db.example.com" in dsn
