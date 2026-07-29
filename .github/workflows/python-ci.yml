@@ -22,7 +22,9 @@ jobs:
           pip install ruff pytest
 
       - name: Lint
-        run: ruff check src scripts      - name: Format diff
+        run: ruff check src scripts
+
+      - name: Format diff
         run: ruff format --diff src scripts
 
       - name: Secret scan
