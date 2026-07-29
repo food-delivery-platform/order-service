@@ -84,6 +84,33 @@ Supabase/Postgres через SQLAlchemy Core (FDS-33), события — SNS/SQ
 
 ---
 
+## Configuration vs secrets
+
+The project keeps credentials and non-secret configuration in two distinct
+storages with a single, shared read path for each:
+
+* **Secrets Manager** — accessed via `SERVICE_SECRET_ARN` and
+  `src/shared/config/secrets.py` (`get_service_secret()`).  Holds credentials
+  only: database user and password, PayPal client id and secret, webhook id.
+  Secret values must never appear in Lambda environment variables, logs, CI
+  output, or committed files.
+* **Environment variables** — read through `src/shared/config/env.py`
+  (`get_required_env`), wired by
+  `.github/workflows/deploy-step-functions.yml` on a per-Lambda basis.  Hold
+  non-secret, per-environment resource names: event bus names and state
+  machine ARNs.  Access to these resources is controlled by IAM, not by
+  secrecy of the name.
+* **New code must read non-secret configuration through**
+  `src.shared.config.env.get_required_env`, never through `os.environ.get`
+  directly.  The helper raises `AppError(500, "CONFIGURATION_ERROR", ...)`
+  when the variable is missing or empty, giving every handler a consistent
+  error shape.
+* **`paypal_webhook`** currently reads `PAYMENT_CONFIRMATION_SM_ARN` through
+  `os.environ.get` directly; it should migrate to `get_required_env` in a
+  follow-up task (FDS-27 follow-up).
+
+---
+
 ## Правило ведения журнала
 
 Каждый AI-агент в конце сессии дописывает строку в ленту ниже.
@@ -717,4 +744,7 @@ FDS-25 snapshot (2026-07-12):
 - 2026-07-18 [DeepSeek/deepseek-v4-pro] FDS-27 P2-C6: add paypal_webhook lambda with signature verification
 - 2026-07-21 [DeepSeek/deepseek-v4-pro] FDS-27: add OpenAPI 3.0 spec for Order Service endpoints (docs/openapi.yaml)
 
+- 2026-07-28 [DeepSeek/deepseek-v4-pro] FDS-42: replaced the create_order stub with a thin handler that validates the request envelope (customer_id, items), decodes the API Gateway body (plain or base64), starts the order-creation state machine with a unique execution name, and returns 202 Accepted with an executionId. The ORDER_CREATION_SM_ARN is set on deploy after the state machine exists. Tests cover 202, 400 (malformed body, missing fields), 500 (missing config), and 502 (orchestration failure).
+- 2026-07-28 [DeepSeek/deepseek-v4-pro] FDS-42: replaced manual "if not" checks with declarative pydantic validation via CreateOrderRequest schema; extra fields forbidden; updated readme with field table and response shape.
+- 2026-07-28 [DeepSeek/deepseek-v4-pro] FDS-42: extracted get_required_env into src/shared/config.py; documented configuration-vs-secrets rule (FDS-42-create-order-endpoint)
 - 2026-07-28 [DeepSeek/deepseek-v4-pro] FDS-41: adds scripts/check_secrets.py and wires it into the python-checks CI job, so hardcoded AWS access keys, database URLs containing a password, JSON Web Tokens and inline credential assignments now fail the build. Lines may opt out with a "secret-scan: allow" marker; placeholders such as os.environ lookups and <redacted> examples are ignored by design.

@@ -1,12 +1,36 @@
-"""Centralized access to environment variables (12-factor config)."""
+"""Centralized access to environment variables (12-factor config).
+
+This module holds non-secret, per-environment configuration.  Credentials
+live in ``src/shared/config/secrets.py`` — never in environment variables.
+"""
 
 import os
+
+from src.shared.errors.app_error import AppError
 
 
 def get(name: str, default: str | None = None, required: bool = False) -> str | None:
     value = os.environ.get(name, default)
     if required and not value:
         raise RuntimeError(f"Missing required environment variable: {name}")
+    return value
+
+
+def get_required_env(name: str) -> str:
+    """Return a non-empty environment variable or fail with a 500 AppError.
+
+    ``get(name, required=True)`` raises ``RuntimeError``, which surfaces as an
+    unhandled 500 with no error code. Handlers need a typed failure they can
+    turn into a proper API response, so configuration defects use AppError with
+    code ``CONFIGURATION_ERROR``. The message names the variable, never a value.
+    """
+    value = os.environ.get(name, "").strip()
+    if not value:
+        raise AppError(
+            500,
+            "CONFIGURATION_ERROR",
+            f"Environment variable {name} is not set",
+        )
     return value
 
 
